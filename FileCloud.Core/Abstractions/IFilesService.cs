@@ -8,6 +8,6 @@ namespace FileCloud.Core.Abstractions
         Task<Guid> UpdateFile(Guid id, string name, string path);
         Task<Guid> UploadFile(Core.Models.File file);
         Task<Guid> DeleteFile(Guid id);
-        Task<Core.Models.File> GetFileWithId(Guid id);
+        Task<Core.Models.File> GetFileById(Guid id);
     }
 }

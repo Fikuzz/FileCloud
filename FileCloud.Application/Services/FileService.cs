@@ -17,9 +17,9 @@ namespace FileCloud.Application.Services
             return await _filesRepositories.Get();
         }
 
-        public async Task<Model.File> GetFileWithId(Guid id)
+        public async Task<Model.File> GetFileById(Guid id)
         {
-            return await _filesRepositories.GetWithId(id);
+            return await _filesRepositories.GetById(id);
         }
 
         public async Task<Guid> UploadFile(Model.File file)

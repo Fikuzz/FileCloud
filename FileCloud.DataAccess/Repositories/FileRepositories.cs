@@ -27,7 +27,7 @@ namespace FileCloud.DataAccess.Repositories
             return files;
         }
 
-        public async Task<Model.File> GetWithId(Guid id)
+        public async Task<Model.File> GetById(Guid id)
         {
             var fileEntity = await _context.Files
                 .Where(f => f.id == id)
