@@ -12,6 +12,7 @@
 - [ ] Delete files (Del key)
 - [ ] Rename files
 - [ ] Right-click context menu
+- [ ] Auto-refresh on file changes
 
 ## ⚙️ UI/UX
 - [x] Multi-select with Shift/Ctrl
