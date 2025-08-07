@@ -130,5 +130,28 @@ namespace FileCloud.Controllers
 
             return File(bytes, "image/jpeg");
         }
+
+        [HttpGet("download/{id:guid}")]
+        public IActionResult DownloadFile(Guid id)
+        {
+            var fileInfo = _filesService.GetFileById(id).Result; // Your internal logic
+            if (fileInfo == null)
+            {
+                _logger.LogWarning("File not found: {Id}", id);
+                return NotFound();
+            }
+
+            var filePath = Path.Combine(_webHostEnvironment.WebRootPath, fileInfo.Path, fileInfo.Name);
+            if (!System.IO.File.Exists(filePath))
+            {
+                _logger.LogWarning("File missing on disk: {Path}", filePath);
+                return NotFound();
+            }
+
+            _logger.LogInformation("Отправка файла клиенту: {FilePath}", filePath);
+
+            var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+            return File(stream, "application/octet-stream", fileInfo.Name);
+        }
     }
 }
