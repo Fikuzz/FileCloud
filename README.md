@@ -7,7 +7,7 @@
 
 ## 📁 File Operations
 - [x] Uploading files
-- [ ] Downloading files
+- [x] Downloading files
 - [ ] File preview on double click
 - [ ] Delete files (Del key)
 - [ ] Rename files
