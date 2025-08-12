@@ -8,7 +8,7 @@
 ## 📁 File Operations
 - [x] Uploading files
 - [x] Downloading files
-- [ ] File preview on double click
+- [x] File preview on double click
 - [ ] Delete files (Del key)
 - [ ] Rename files
 - [ ] Right-click context menu
