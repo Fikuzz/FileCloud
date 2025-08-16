@@ -2,7 +2,9 @@
 using FileCloud.Contracts;
 using FileCloud.Core.Abstractions;
 using FileCloud.Core.Models;
+using FileCloud.Hubs;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Net.Http.Headers;
@@ -22,12 +24,14 @@ namespace FileCloud.Controllers
         private readonly PreviewService _previewService;
         private readonly IWebHostEnvironment _webHostEnvironment;
         private readonly ILogger<FileController> _logger;
-        public FileController(IFilesService filesService, IWebHostEnvironment webHostEnvironment, ILogger<FileController> logger, PreviewService previewService)
+        private readonly IHubContext<FileHub> _hubContext;
+        public FileController(IFilesService filesService, IWebHostEnvironment webHostEnvironment, ILogger<FileController> logger, PreviewService previewService, IHubContext<FileHub> hubContext)
         {
             _previewService = previewService;
             _filesService = filesService;
             _webHostEnvironment = webHostEnvironment;
             _logger = logger;
+            _hubContext = hubContext;
         }
 
         [HttpGet]
@@ -86,6 +90,9 @@ namespace FileCloud.Controllers
 
                 Guid fileGuid = await _filesService.UploadFile(Core.Models.File.Create(Guid.NewGuid(), fileName, relativePath).file);
                 await _previewService.GeneratePreviewAsync(filePath, fileGuid);
+
+                await _hubContext.Clients.All.SendAsync("FileLoaded", fileGuid.ToString());
+
                 uploadedFiles.Add(fileName);
             }
 

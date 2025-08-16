@@ -9,28 +9,28 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Web;
 
 var builder = WebApplication.CreateBuilder(args);
-// Add services to the container.
-
+// Add services to the container
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddDbContext<FileCloudDbContext>(
-    options =>
-    {
-        options.UseNpgsql(builder.Configuration.GetConnectionString(nameof(FileCloudDbContext)));
-    });
+builder.Services.AddDbContext<FileCloudDbContext>(options =>
+{
+    options.UseNpgsql(builder.Configuration.GetConnectionString(nameof(FileCloudDbContext)));
+});
 
+// File upload limits
 builder.Services.Configure<FormOptions>(options =>
 {
-    options.MultipartBodyLengthLimit = 524288000; // 500MB
+    options.MultipartBodyLengthLimit = 524_288_000; // 500MB
 });
 builder.WebHost.ConfigureKestrel(serverOptions =>
 {
-    serverOptions.Limits.MaxRequestBodySize = 524288000; // 500MB
+    serverOptions.Limits.MaxRequestBodySize = 524_288_000; // 500MB
 });
 
+// CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -41,14 +41,14 @@ builder.Services.AddCors(options =>
     });
 });
 
+// DI
 builder.Services.AddScoped<IFilesService, FileService>();
 builder.Services.AddScoped<IFilesRepositories, FileRepositories>();
 builder.Services.AddScoped<PreviewService>();
 
 var app = builder.Build();
 
-app.UseCors("AllowAll");
-// Configure the HTTP request pipeline.
+// Middleware order matters!
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -59,18 +59,26 @@ if (app.Environment.IsDevelopment())
     });
 }
 
+app.UseHttpsRedirection();
+
+app.UseCors("AllowAll");
+
 app.UseAuthorization();
 
+// Map endpoints
 app.MapControllers();
+app.MapHub<FileCloud.Hubs.FileHub>("/fileHub");
 
+// Conventional routing (optional, since you already use attribute routing)
 app.MapControllerRoute(
     name: "default",
-    pattern: "api/{controller}/{action}/{id}");
+    pattern: "api/{controller}/{action}/{id?}");
 
+// Apply migrations at startup
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<FileCloudDbContext>();
-    dbContext.Database.Migrate(); // запускает миграции автоматически
+    dbContext.Database.Migrate();
 }
 
 app.Run();
