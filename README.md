@@ -7,11 +7,12 @@
 
 ## 📁 File Operations
 - [x] Uploading files
-- [ ] Downloading files
-- [ ] File preview on double click
-- [ ] Delete files (Del key)
+- [x] Downloading files
+- [x] File preview on double click
+- [x] Delete files (Del key)
 - [ ] Rename files
-- [ ] Right-click context menu
+- [x] Right-click context menu
+- [ ] Auto-refresh on file changes
 
 ## ⚙️ UI/UX
 - [x] Multi-select with Shift/Ctrl
