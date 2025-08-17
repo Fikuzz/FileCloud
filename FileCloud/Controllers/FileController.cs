@@ -119,6 +119,7 @@ namespace FileCloud.Controllers
                 }
                 _previewService.DeletePreview(id);
                 var deletedId = await _filesService.DeleteFile(id);
+                await _hubContext.Clients.All.SendAsync("FileDeleted", id.ToString());
                 deletedFileIds.Add(deletedId);
             }
 
