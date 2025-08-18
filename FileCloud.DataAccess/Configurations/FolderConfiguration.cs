@@ -3,9 +3,9 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using FileCloud.DataAccess.Entities;
 
 namespace FileCloud.DataAccess.Configurations;
-public class FileConfiguration : IEntityTypeConfiguration<FileEntity>
+public class FolderConfiguration : IEntityTypeConfiguration<FolderEntity>
 {
-    public void Configure(EntityTypeBuilder<FileEntity> builder)
+    public void Configure(EntityTypeBuilder<FolderEntity> builder)
     {
         builder.HasKey(f => f.Id);
 
@@ -13,14 +13,13 @@ public class FileConfiguration : IEntityTypeConfiguration<FileEntity>
             .IsRequired()
             .HasMaxLength(255);
 
-        builder.Property(f => f.Path)
-            .IsRequired();
+        builder.HasMany(f => f.SubFolders)
+            .WithOne(f => f.Parent)
+            .HasForeignKey(f => f.ParentId)
+            .OnDelete(DeleteBehavior.Restrict);
 
-        builder.Property(f => f.Size)
-            .IsRequired(false);
-
-        builder.HasOne(f => f.Folder)
-            .WithMany(f => f.Files)
+        builder.HasMany(f => f.Files)
+            .WithOne(f => f.Folder)
             .HasForeignKey(f => f.FolderId)
             .OnDelete(DeleteBehavior.Cascade);
     }
