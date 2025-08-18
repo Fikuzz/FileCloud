@@ -12,7 +12,7 @@
 - [x] Delete files (Del key)
 - [ ] Rename files
 - [x] Right-click context menu
-- [ ] Auto-refresh on file changes
+- [x] Auto-refresh on file changes
 
 ## ⚙️ UI/UX
 - [x] Multi-select with Shift/Ctrl
@@ -29,4 +29,3 @@
 - [ ] Folder creation and navigation
 - [ ] Recycle bin for deleted files
 - [ ] File sharing via links
-- [ ] File version history
