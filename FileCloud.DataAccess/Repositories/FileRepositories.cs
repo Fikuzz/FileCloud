@@ -1,7 +1,10 @@
-﻿using FileCloud.Core.Abstractions;
+﻿using FileCloud.Core;
+using FileCloud.Core.Abstractions;
+using FileCloud.Core.Models;
 using FileCloud.DataAccess.Entities;
+using FileCloud.DataAccess.Mappers;
 using Microsoft.EntityFrameworkCore;
-using System.Xml.Linq;
+using System.IO;
 using Model = FileCloud.Core.Models;
 
 namespace FileCloud.DataAccess.Repositories
@@ -15,28 +18,28 @@ namespace FileCloud.DataAccess.Repositories
             _context = context;
         }
 
-        public async Task<List<Model.File>> Get()
+        public async Task<List<Result<Model.File>>> GetAll()
         {
             var fileEntities = await _context.Files
                 .AsNoTracking()
                 .ToListAsync();
 
-            var files = fileEntities
-                .Select(f => Model.File.Create(f.Id, f.Name, f.Path).file)
+            var result = fileEntities
+                .Select(f => FileMapper.ToModel(f))
                 .ToList();
 
-            return files;
+            return result;
         }
 
-        public async Task<Model.File> GetById(Guid id)
+        public async Task<Result<Model.File>> Get(Guid id)
         {
             var fileEntity = await _context.Files
                 .Where(f => f.Id == id)
                 .FirstAsync();
 
-            var file = Model.File.Create(fileEntity.Id, fileEntity.Name, fileEntity.Path).file;
+            var result = FileMapper.ToModel(fileEntity);
 
-            return file;
+            return result;
         }
 
         public async Task<Guid> Create(Model.File file)
@@ -44,24 +47,15 @@ namespace FileCloud.DataAccess.Repositories
             var fileEntity = new FileEntity
             {
                 Name = file.Name,
-                Path = file.Path
+                Path = file.Path,
+                Size = file.Size,
+                FolderId = file.FolderId,
             };
 
             await _context.Files.AddAsync(fileEntity);
             await _context.SaveChangesAsync();
 
             return fileEntity.Id;
-        }
-
-        public async Task<Guid> Update(Guid id, string name, string path)
-        {
-            await _context.Files
-                .Where(f => f.Id == id)
-                .ExecuteUpdateAsync(s => s
-                    .SetProperty(f => f.Name, f => name)
-                    .SetProperty(f => f.Path, f => path));
-
-            return id;
         }
 
         public async Task<Guid> Delete(Guid id)
@@ -82,12 +76,22 @@ namespace FileCloud.DataAccess.Repositories
             return id;
         }
 
-        public async Task<Guid> Move(Guid id, string path)
+        public async Task<Guid> Move(Guid id, string path, Guid folderId)
+        {
+            await _context.Files
+                .Where (f => f.Id == id)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(f => f.FolderId, f => folderId)
+                    .SetProperty(f => f.Path, f => path));
+            return id;
+        }
+
+        public async Task<Guid> Size(Guid id, long size)
         {
             await _context.Files
                 .Where(f => f.Id == id)
                 .ExecuteUpdateAsync(s => s
-                    .SetProperty(f => f.Path, f => path));
+                    .SetProperty(f => f.Size, f => size));
             return id;
         }
     }
