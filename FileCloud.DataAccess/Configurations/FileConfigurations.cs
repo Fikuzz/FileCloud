@@ -23,5 +23,8 @@ public class FileConfiguration : IEntityTypeConfiguration<FileEntity>
             .WithMany(f => f.Files)
             .HasForeignKey(f => f.FolderId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasIndex(f => new { f.FolderId, f.Name })
+            .IsUnique();
     }
 }
