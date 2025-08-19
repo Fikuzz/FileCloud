@@ -94,5 +94,19 @@ namespace FileCloud.DataAccess.Repositories
                     .SetProperty(f => f.Size, f => size));
             return id;
         }
+
+        public async Task<List<Result<Model.File>>> GetChild(Guid id)
+        {
+            var fileEntities = await _context.Files
+                .Where(f => f.FolderId == id)
+                .AsNoTracking()
+                .ToListAsync();
+
+            var result = fileEntities
+                .Select(f => FileMapper.ToModel(f))
+                .ToList();
+
+            return result;
+        }
     }
 }
