@@ -6,8 +6,10 @@ namespace FileCloud.Core.Abstractions
     {
         Task<Guid> Create(Core.Models.File file);
         Task<Guid> Delete(Guid id);
-        Task<List<Core.Models.File>> Get();
-        Task<Core.Models.File> GetById(Guid id);
-        Task<Guid> Update(Guid id, string name, string path);
+        Task<List<Result<Core.Models.File>>> GetAll();
+        Task<Result<Core.Models.File>> Get(Guid id);
+        Task<Guid> Rename(Guid id, string name);
+        Task<Guid> Move(Guid id, string path, Guid folderId);
+        Task<Guid> Size(Guid id, long size);
     }
 }

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using FileCloud.Core.Abstractions;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,28 +9,30 @@ namespace FileCloud.Core.Models
 {
     public class File
     {
-        private File(Guid id, string name, string path)
+        private File(Guid id, string name, string path, long? size, Guid folderId)
         {
-            this.id = id;
+            this.Id = id;
             Name = name;
             Path = path;
+            Size = size;
+            FolderId = folderId;
         }
-        public Guid id { get; }
-        public string Name { get; }
-        public string Path { get; }
+        public Guid Id { get; set; } = Guid.NewGuid();
+        public string Name { get; set; } = string.Empty;
+        public string Path { get; set; } = string.Empty;
+        public long? Size { get; set; }
+        public Guid FolderId { get; set; }
 
-        public static (File file, string Error) Create(Guid id, string name, string path)
+        public static Result<File> Create(Guid id, string name, string path, long? size, Guid folderId)
         {
-            var error = string.Empty;
-
             if (string.IsNullOrEmpty(name))
             {
-                error = "incorrect file name";
+                return Result<File>.Fail("incorect file name");
             }
 
-            var file = new File(id, name, path);
+            var file = new File(id, name, path, size, folderId);
 
-            return (file, error);
+            return Result<File>.Success(file);
         }
     }
 }
