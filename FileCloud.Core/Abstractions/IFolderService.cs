@@ -11,11 +11,11 @@ namespace FileCloud.Core.Abstractions
     public interface IFolderService
     {
         public Task<List<Result<Folder>>> GetAllFolders();
+        public Task<Result<List<Folder>>> GetChildFolder(Guid id);
         public Task<Result<Folder>> GetFolder(Guid id);
-        public Task<Result<Guid>> CreateFolder(Folder folder);
+        public Task<Result<Guid>> CreateFolder(string name, Guid? parentId);
         public Task<Result<Guid>> RenameFolder(Guid id, string name);
         public Task<Result<Guid>> MoveFolder(Guid id, Folder? parent);
-        public Task<Result<Guid>> DeleteFolder(Guid id);
-        public Task<string> BuildFullPathAsync(FileCloud.Core.Models.File file);
+        public Task<Result<Folder>> DeleteFolder(Guid id);
     }
 }

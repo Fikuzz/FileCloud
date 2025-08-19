@@ -1,5 +1,6 @@
 using FileCloud.Application.Services;
 using FileCloud.Core.Abstractions;
+using FileCloud.Core.Options;
 using FileCloud.DataAccess;
 using FileCloud.DataAccess.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -43,29 +44,27 @@ builder.Services.AddCors(options =>
     });
 });
 
+var env = builder.Environment;
+string basePath = Path.Combine(env.WebRootPath, "Files");
+if (!Directory.Exists(basePath))
+    Directory.CreateDirectory(basePath);
+
+builder.Services.Configure<StorageOptions>(options =>
+{
+    options.BasePath = basePath;
+});
+
 // DI for repositories and services
+builder.Services.AddScoped<IFilesService, FileService>();
+builder.Services.AddScoped<IFolderService, FolderService>();
+builder.Services.AddScoped<IStorageService,  StorageService>();
 builder.Services.AddScoped<IFilesRepositories, FileRepositories>();
 builder.Services.AddScoped<IFolderRepositories, FolderRepositories>();
-builder.Services.AddScoped<IFolderService, FolderService>();
 builder.Services.AddScoped<PreviewService>();
 builder.Services.AddScoped<ILogger<FileService>, Logger<FileService>>();
+builder.Services.AddScoped<ILogger<FolderService>, Logger<FolderService>>();
+builder.Services.AddScoped<ILogger<StorageService>, Logger<StorageService>>();
 
-// DI for FileService with base path
-builder.Services.AddScoped<IFilesService>(provider =>
-{
-    var filesRepo = provider.GetRequiredService<IFilesRepositories>();
-    var folderService = provider.GetRequiredService<IFolderService>();
-    var previewService = provider.GetRequiredService<PreviewService>();
-    var logger = provider.GetRequiredService<ILogger<FileService>>();
-    var env = provider.GetRequiredService<IWebHostEnvironment>();
-
-    // Базовая папка для сохранения файлов
-    string basePath = Path.Combine(env.WebRootPath, "uploads");
-    if (!Directory.Exists(basePath))
-        Directory.CreateDirectory(basePath);
-
-    return new FileService(filesRepo, folderService, basePath, previewService, logger);
-});
 
 var app = builder.Build();
 

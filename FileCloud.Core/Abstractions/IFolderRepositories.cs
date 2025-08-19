@@ -10,8 +10,9 @@ namespace FileCloud.Core.Abstractions
     public interface IFolderRepositories
     {
         Task<Guid> Create(Folder folder);
-        Task<Guid> Delete(Guid id);
+        Task<Folder> Delete(Guid id);
         Task<List<Result<Folder>>> GetAll();
+        Task<List<Result<Folder>>> GetChild(Guid id);
         Task<Result<Folder>> Get(Guid id);
         Task<Guid> Rename(Guid id, string name);
         Task<Guid> Move(Guid id, Folder? parent);

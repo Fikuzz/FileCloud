@@ -1,27 +1,56 @@
 ﻿using FileCloud.Core.Abstractions;
 using FileCloud.Core.Models;
 using FileCloud.Core;
+using Microsoft.Extensions.Logging;
 
 namespace FileCloud.Application.Services
 {
     public class FolderService : IFolderService
     {
         IFolderRepositories _folderRepository;
-        public FolderService(IFolderRepositories repository)
+        ILogger<FolderService> _logger;
+        public FolderService(IFolderRepositories repository, ILogger<FolderService> logger)
         {
             this._folderRepository = repository;
+            this._logger = logger;
         }
         public async Task<List<Result<Folder>>> GetAllFolders()
         {
             return await _folderRepository.GetAll();
         }
+        public async Task<Result<List<Folder>>> GetChildFolder(Guid id)
+        {
+            var result = await _folderRepository.GetChild(id);
+            if(result.Count == 0)
+                return Result<List<Folder>>.Success(new List<Folder>());
+
+            var errors = result.Where(f => !f.IsSuccess)
+                .Select(e => e.Error)
+                .ToList();
+
+            foreach (var error in errors)
+                _logger.LogInformation(error);
+
+            var SuccessValues = result.Where(f => f.IsSuccess)
+                .Select(v => v.Value)
+                .ToList();
+
+            if (SuccessValues.Count == 0)
+                return Result<List<Folder>>.Fail("couldn't get any objects");
+            else
+                return Result<List<Folder>>.Success(SuccessValues);
+        }
         public async Task<Result<Folder>> GetFolder(Guid id)
         {
             return await _folderRepository.Get(id);
         }
-        public async Task<Result<Guid>> CreateFolder(Folder folder)
+        public async Task<Result<Guid>> CreateFolder(string name, Guid? parentId)
         {
-            var result = await _folderRepository.Create(folder);
+            var folderResult = Folder.Create(Guid.NewGuid(), name, parentId, null, null);
+            if (!folderResult.IsSuccess)
+                return Result<Guid>.Fail(folderResult.Error);
+
+            var result = await _folderRepository.Create(folderResult.Value);
             return Result<Guid>.Success(result);
         }
         public async Task<Result<Guid>> RenameFolder(Guid id, string name)
@@ -34,37 +63,17 @@ namespace FileCloud.Application.Services
             var result = await _folderRepository.Move(id, parent);
             return Result<Guid>.Success(result);
         }
-        public async Task<Result<Guid>> DeleteFolder(Guid id)
+        public async Task<Result<Folder>> DeleteFolder(Guid id)
         {
-            var result = await _folderRepository.Delete(id);
-            return Result<Guid>.Success(result);
-        }
-
-        public async Task<string> BuildFullPathAsync(FileCloud.Core.Models.File file)
-        {
-            var parts = new List<string>();
-            parts.Add(file.Name);
-            var folder = await _folderRepository.Get(file.FolderId);
-            if (!folder.IsSuccess)
-                return string.Empty;
-            var current = folder.Value;
-
-            while (current != null)
+            try
             {
-                parts.Add(current.Name);
-
-                if (current.ParentId == null)
-                    break;
-
-                var result = await _folderRepository.Get(current.ParentId.Value);
-                if (result.IsSuccess)
-                    current = result.Value;
-                else
-                    return string.Empty;
+                var result = await _folderRepository.Delete(id);
+                return Result<Folder>.Success(result);
             }
-
-            parts.Reverse();
-            return Path.Combine(parts.ToArray());
+            catch(Exception ex)
+            {
+                return Result<Folder>.Fail(ex.Message);
+            }
         }
     }
 }

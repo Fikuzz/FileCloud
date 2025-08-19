@@ -1,19 +1,9 @@
-﻿using FileCloud.Application.Services;
-using FileCloud.Contracts;
+﻿using FileCloud.Contracts;
 using FileCloud.Core.Abstractions;
-using FileCloud.Core.Models;
 using FileCloud.Hubs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.Extensions.Logging;
-using Microsoft.Net.Http.Headers;
 using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Processing;
-using System.IO;
-using System.Net.Http;
-using System.Threading.Tasks;
-using Model = FileCloud.Core.Models;
 
 namespace FileCloud.Controllers
 {
@@ -22,31 +12,25 @@ namespace FileCloud.Controllers
     public class FileController : ControllerBase
     {
         private readonly IFilesService _filesService;
-        private readonly IWebHostEnvironment _webHostEnvironment;
+        private readonly IStorageService _storageService;
         private readonly IHubContext<FileHub> _hubContext;
-        public FileController(IFilesService filesService, IWebHostEnvironment webHostEnvironment, IHubContext<FileHub> hubContext)
+        public FileController(IFilesService filesService, IStorageService storageService, IHubContext<FileHub> hubContext)
         {
             _filesService = filesService;
-            _webHostEnvironment = webHostEnvironment;
             _hubContext = hubContext;
+            _storageService = storageService;
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<FileResponse>>> GetFile()
+        public async Task<ActionResult<List<Contracts.FileResult>>> GetFiles()
         {
             var results = await _filesService.GetAllFiles();
 
-            if(!results.All(r => r.IsSuccess))
+            var response = results.Select(r => new Contracts.FileResult
             {
-                var error = results
-                    .Where(r => !r.IsSuccess)
-                    .First().Error;
-                return BadRequest(error);
-            }
-            var files = results
-                .Select(r => r.Value)
-                .ToList();
-            var response = files.Select(f => new FileResponse(f.Id, f.Name, f.Size, f.Path));
+                File = r.IsSuccess ? new FileResponse(r.Value.Id, r.Value.Name, r.Value.Size, r.Value.Path) : null,
+                Error = r.IsSuccess ? null : r.Error
+            }).ToList();
 
             return Ok(response);
         }
@@ -63,10 +47,9 @@ namespace FileCloud.Controllers
         }
 
         [HttpPost("stream-upload")]
-        [RequestSizeLimit(long.MaxValue)]
         [Consumes("multipart/form-data")]
         [ApiExplorerSettings(IgnoreApi = true)]
-        public async Task<IActionResult> UploadStream([FromQuery] Guid folderId, [FromQuery] string? path = null)
+        public async Task<ActionResult> UploadStream([FromQuery] Guid folderId, [FromQuery] string? path = null)
         {
             if (!Request.HasFormContentType)
                 return BadRequest("Некорректный Content-Type");
@@ -79,15 +62,22 @@ namespace FileCloud.Controllers
             
             foreach (var file in files)
             {
-                var fileDTO = Core.Models.File.Create(Guid.NewGuid(), file.FileName, path, null, folderId);
+                var fileDTO = Core.Models.File.Create(Guid.NewGuid(), file.FileName, path, file.Length, folderId);
                 
                 if (!fileDTO.IsSuccess)
                     return BadRequest(fileDTO.Error);
 
-                var result = await _filesService.UploadFile(fileDTO.Value, file);
-
+                await using var fileStream = file.OpenReadStream();
+                var result = await _storageService.LoadFileAsStream(fileStream, fileDTO.Value);
                 if (!result.IsSuccess)
                     return BadRequest(result.Error);
+
+                var dbResult = await _filesService.UploadFile(result.Value);
+                if(!dbResult.IsSuccess)
+                {
+                    await _storageService.DeleteFileAsync(fileDTO.Value.Id);
+                    return BadRequest(dbResult.Error);
+                }
 
                 await _hubContext.Clients.All.SendAsync("FileLoaded", result.Value.ToString());
 
@@ -98,25 +88,23 @@ namespace FileCloud.Controllers
         }
 
         [HttpPost("delete")]
-        public async Task<ActionResult<List<string>>> DeleteFiles([FromBody] List<Guid> ids)
+        public async Task<ActionResult<string>> DeleteFile([FromBody] Guid id)
         {
-            var deletedFileIds = new List<string>();
-            foreach (var id in ids)
-            {
-                var deletedFileName = await _filesService.DeleteFile(id);
-                if (!deletedFileName.IsSuccess)
-                    return BadRequest(deletedFileName.Error);
-                
-                deletedFileIds.Add(deletedFileName.Value);
-            }
+            var deleteResult = await _storageService.DeleteFileAsync(id);
+            if(!deleteResult.IsSuccess)
+                return BadRequest(deleteResult.Error);
 
-            return Ok(deletedFileIds);
+            var deletedFileName = await _filesService.DeleteFile(id);
+            if (!deletedFileName.IsSuccess)
+                return BadRequest(deletedFileName.Error);
+
+            return Ok(deletedFileName.Value);
         }
 
         [HttpGet("preview/{id:guid}")]
-        public async Task<IActionResult> GetPreview(Guid id)
+        public async Task<ActionResult> GetPreview(Guid id)
         {
-            var bytes = await _filesService.GetPreview(id);
+            var bytes = await _storageService.GetPreview(id);
 
             if(!bytes.IsSuccess)
                 return NotFound(bytes.Error);
@@ -125,9 +113,9 @@ namespace FileCloud.Controllers
         }
 
         [HttpGet("download/{id:guid}")]
-        public async Task<IActionResult> DownloadFile(Guid id)
+        public async Task<ActionResult> DownloadFile(Guid id)
         {
-            var bytesResult = await _filesService.GetFileBytes(id);
+            var bytesResult = await _storageService.GetFileBytes(id);
             if (!bytesResult.IsSuccess)
                 return NotFound(bytesResult.Error);
 
@@ -140,19 +128,43 @@ namespace FileCloud.Controllers
         }
 
         [HttpPut("{id}/rename")]
-        public async Task<IActionResult> RenameFile(Guid id, [FromBody] RenameFileRequest dto)
+        public async Task<ActionResult> RenameFile(Guid id, [FromBody] RenameFileRequest dto)
         {
+            var result = await _storageService.RenameFile(id, dto.NewName);
+            if(!result.IsSuccess)
+                return BadRequest(result.Error);
+
             var updated = await _filesService.RenameFile(id, dto.NewName);
-            if(!updated.IsSuccess)
+            if (!updated.IsSuccess)
+            {
+                var oldNameResult = await _filesService.GetFileById(id);
+                var oldName = id.ToString();
+                if (oldNameResult.IsSuccess)
+                     oldName = oldNameResult.Value.Name;
+                await _storageService.RenameFile(id, oldName);
                 return BadRequest(updated.Error);
+            }
             return Ok(updated.Value);
         }
 
         [HttpPut("{id}/move")]
-        public async Task<IActionResult> MoveFile(Guid id, [FromBody] Guid folderId)
+        public async Task<ActionResult> MoveFile(Guid id, [FromBody] Guid folderId)
         {
-            var updated = await _filesService.MoveFile(id, folderId);
-            return Ok(updated);
+            var oldfolderResult = await _filesService.GetFileById(id);
+            if(!oldfolderResult.IsSuccess)
+                return NotFound();
+
+            var result = await _storageService.MoveFile(id, folderId);
+            if(!result.IsSuccess)
+                return BadRequest(result.Error);
+
+            var updated = await _filesService.MoveFile(id, result.Value, folderId);
+            if (!updated.IsSuccess)
+            {
+                _storageService.MoveFile(id, oldfolderResult.Value.FolderId);
+                return BadRequest(updated.Error);
+            }
+            return Ok(updated.Value);
         }
     }
 }
