@@ -12,6 +12,7 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
 using System.IO;
 using System.Net.Http;
+using System.Threading.Tasks;
 using Model = FileCloud.Core.Models;
 
 namespace FileCloud.Controllers
@@ -21,25 +22,31 @@ namespace FileCloud.Controllers
     public class FileController : ControllerBase
     {
         private readonly IFilesService _filesService;
-        private readonly PreviewService _previewService;
         private readonly IWebHostEnvironment _webHostEnvironment;
-        private readonly ILogger<FileController> _logger;
         private readonly IHubContext<FileHub> _hubContext;
-        public FileController(IFilesService filesService, IWebHostEnvironment webHostEnvironment, ILogger<FileController> logger, PreviewService previewService, IHubContext<FileHub> hubContext)
+        public FileController(IFilesService filesService, IWebHostEnvironment webHostEnvironment, IHubContext<FileHub> hubContext)
         {
-            _previewService = previewService;
             _filesService = filesService;
             _webHostEnvironment = webHostEnvironment;
-            _logger = logger;
             _hubContext = hubContext;
         }
 
         [HttpGet]
         public async Task<ActionResult<List<FileResponse>>> GetFile()
         {
-            var files = await _filesService.GetAllFiles();
+            var results = await _filesService.GetAllFiles();
 
-            var response = files.Select(f => new FileResponse(f.id, f.Name, f.Path));
+            if(!results.All(r => r.IsSuccess))
+            {
+                var error = results
+                    .Where(r => !r.IsSuccess)
+                    .First().Error;
+                return BadRequest(error);
+            }
+            var files = results
+                .Select(r => r.Value)
+                .ToList();
+            var response = files.Select(f => new FileResponse(f.Id, f.Name, f.Size, f.Path));
 
             return Ok(response);
         }
@@ -47,10 +54,11 @@ namespace FileCloud.Controllers
         [HttpGet("{id:Guid}")]
         public async Task<ActionResult<FileResponse>> GetFileById(Guid id)
         {
-            var file = await _filesService.GetFileById(id);
-
-            var response = new FileResponse(id, file.Name, file.Path);
-
+            var result = await _filesService.GetFileById(id);
+            if (!result.IsSuccess) 
+                return BadRequest(result.Error);
+            var file = result.Value;
+            var response = new FileResponse(id, file.Name, file.Size, file.Path);
             return Ok(response);
         }
 
@@ -58,69 +66,48 @@ namespace FileCloud.Controllers
         [RequestSizeLimit(long.MaxValue)]
         [Consumes("multipart/form-data")]
         [ApiExplorerSettings(IgnoreApi = true)]
-        public async Task<IActionResult> UploadStream([FromQuery] string? path = null)
+        public async Task<IActionResult> UploadStream([FromQuery] Guid folderId, [FromQuery] string? path = null)
         {
             if (!Request.HasFormContentType)
                 return BadRequest("Некорректный Content-Type");
 
             var files = Request.Form.Files;
-
             if (files == null || files.Count == 0)
                 return BadRequest("Файлы не были загружены");
 
             var uploadedFiles = new List<string>();
-            var relativePath = path?.Trim('/') ?? string.Empty;
-            var folderPath = Path.Combine(_webHostEnvironment.WebRootPath, relativePath);
-            Directory.CreateDirectory(folderPath);
-
+            
             foreach (var file in files)
             {
-                string fileName = Path.GetFileName(file.FileName);
-                string filePath = Path.Combine(folderPath, fileName);
+                var fileDTO = Core.Models.File.Create(Guid.NewGuid(), file.FileName, path, null, folderId);
+                
+                if (!fileDTO.IsSuccess)
+                    return BadRequest(fileDTO.Error);
 
-                if (System.IO.File.Exists(filePath))
-                    continue; // Пропускаем существующий файл
+                var result = await _filesService.UploadFile(fileDTO.Value, file);
 
-                await using var stream = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write);
-                await file.CopyToAsync(stream);
-                await stream.FlushAsync();
-                stream.Close();
+                if (!result.IsSuccess)
+                    return BadRequest(result.Error);
 
-                _logger.LogInformation("Загружен файл: {File}", filePath);
+                await _hubContext.Clients.All.SendAsync("FileLoaded", result.Value.ToString());
 
-                Guid fileGuid = await _filesService.UploadFile(Core.Models.File.Create(Guid.NewGuid(), fileName, relativePath).file);
-                await _previewService.GeneratePreviewAsync(filePath, fileGuid);
-
-                await _hubContext.Clients.All.SendAsync("FileLoaded", fileGuid.ToString());
-
-                uploadedFiles.Add(fileName);
+                uploadedFiles.Add(file.FileName);
             }
 
             return Ok(new { Uploaded = uploadedFiles });
         }
 
         [HttpPost("delete")]
-        public async Task<ActionResult<List<Guid>>> DeleteFiles([FromBody] List<Guid> ids)
+        public async Task<ActionResult<List<string>>> DeleteFiles([FromBody] List<Guid> ids)
         {
-            var deletedFileIds = new List<Guid>();
-
+            var deletedFileIds = new List<string>();
             foreach (var id in ids)
             {
-                var uploadedFile = await _filesService.GetFileById(id);
-
-                if (uploadedFile == null)
-                    continue;
-
-                string filePath = Path.Combine(_webHostEnvironment.WebRootPath, uploadedFile.Path, uploadedFile.Name);
-
-                if (System.IO.File.Exists(filePath))
-                {
-                    System.IO.File.Delete(filePath);
-                }
-                _previewService.DeletePreview(id);
-                var deletedId = await _filesService.DeleteFile(id);
-                await _hubContext.Clients.All.SendAsync("FileDeleted", id.ToString());
-                deletedFileIds.Add(deletedId);
+                var deletedFileName = await _filesService.DeleteFile(id);
+                if (!deletedFileName.IsSuccess)
+                    return BadRequest(deletedFileName.Error);
+                
+                deletedFileIds.Add(deletedFileName.Value);
             }
 
             return Ok(deletedFileIds);
@@ -129,37 +116,43 @@ namespace FileCloud.Controllers
         [HttpGet("preview/{id:guid}")]
         public async Task<IActionResult> GetPreview(Guid id)
         {
-            var previewPath = _previewService.GetPreviewPath(id);
+            var bytes = await _filesService.GetPreview(id);
 
-            if (!System.IO.File.Exists(previewPath))
-                return NotFound();
+            if(!bytes.IsSuccess)
+                return NotFound(bytes.Error);
 
-            var bytes = await System.IO.File.ReadAllBytesAsync(previewPath);
-
-            return File(bytes, "image/jpeg");
+            return File(bytes.Value, "image/jpeg");
         }
 
         [HttpGet("download/{id:guid}")]
-        public IActionResult DownloadFile(Guid id)
+        public async Task<IActionResult> DownloadFile(Guid id)
         {
-            var fileInfo = _filesService.GetFileById(id).Result; // Your internal logic
-            if (fileInfo == null)
-            {
-                _logger.LogWarning("File not found: {Id}", id);
-                return NotFound();
-            }
+            var bytesResult = await _filesService.GetFileBytes(id);
+            if (!bytesResult.IsSuccess)
+                return NotFound(bytesResult.Error);
 
-            var filePath = Path.Combine(_webHostEnvironment.WebRootPath, fileInfo.Path, fileInfo.Name);
-            if (!System.IO.File.Exists(filePath))
-            {
-                _logger.LogWarning("File missing on disk: {Path}", filePath);
-                return NotFound();
-            }
+            var file = await _filesService.GetFileById(id);
 
-            _logger.LogInformation("Отправка файла клиенту: {FilePath}", filePath);
+            if (!file.IsSuccess)
+                return BadRequest(file.Error);
 
-            var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
-            return File(stream, "application/octet-stream", fileInfo.Name);
+            return File(bytesResult.Value, "application/octet-stream", file.Value.Name);
+        }
+
+        [HttpPut("{id}/rename")]
+        public async Task<IActionResult> RenameFile(Guid id, [FromBody] RenameFileRequest dto)
+        {
+            var updated = await _filesService.RenameFile(id, dto.NewName);
+            if(!updated.IsSuccess)
+                return BadRequest(updated.Error);
+            return Ok(updated.Value);
+        }
+
+        [HttpPut("{id}/move")]
+        public async Task<IActionResult> MoveFile(Guid id, [FromBody] Guid folderId)
+        {
+            var updated = await _filesService.MoveFile(id, folderId);
+            return Ok(updated);
         }
     }
 }

@@ -9,12 +9,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Web;
 
 var builder = WebApplication.CreateBuilder(args);
+
 // Add services to the container
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// DbContext
 builder.Services.AddDbContext<FileCloudDbContext>(options =>
 {
     options.UseNpgsql(builder.Configuration.GetConnectionString(nameof(FileCloudDbContext)));
@@ -41,14 +43,33 @@ builder.Services.AddCors(options =>
     });
 });
 
-// DI
-builder.Services.AddScoped<IFilesService, FileService>();
+// DI for repositories and services
 builder.Services.AddScoped<IFilesRepositories, FileRepositories>();
+builder.Services.AddScoped<IFolderRepositories, FolderRepositories>();
+builder.Services.AddScoped<IFolderService, FolderService>();
 builder.Services.AddScoped<PreviewService>();
+builder.Services.AddScoped<ILogger<FileService>, Logger<FileService>>();
+
+// DI for FileService with base path
+builder.Services.AddScoped<IFilesService>(provider =>
+{
+    var filesRepo = provider.GetRequiredService<IFilesRepositories>();
+    var folderService = provider.GetRequiredService<IFolderService>();
+    var previewService = provider.GetRequiredService<PreviewService>();
+    var logger = provider.GetRequiredService<ILogger<FileService>>();
+    var env = provider.GetRequiredService<IWebHostEnvironment>();
+
+    // Базовая папка для сохранения файлов
+    string basePath = Path.Combine(env.WebRootPath, "uploads");
+    if (!Directory.Exists(basePath))
+        Directory.CreateDirectory(basePath);
+
+    return new FileService(filesRepo, folderService, basePath, previewService, logger);
+});
 
 var app = builder.Build();
 
-// Middleware order matters!
+// Middleware order
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -60,16 +81,14 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
 app.UseCors("AllowAll");
-
 app.UseAuthorization();
 
 // Map endpoints
 app.MapControllers();
 app.MapHub<FileCloud.Hubs.FileHub>("/fileHub");
 
-// Conventional routing (optional, since you already use attribute routing)
+// Conventional routing (optional)
 app.MapControllerRoute(
     name: "default",
     pattern: "api/{controller}/{action}/{id?}");
