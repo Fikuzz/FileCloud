@@ -34,12 +34,21 @@ namespace FileCloud.DataAccess.Repositories
             return folderEntity.Id;
         }
 
-        public async Task<Guid> Delete(Guid id)
+        public async Task<Folder> Delete(Guid id)
         {
+            var folder = await _context.Folders
+                .Where(f => f.Id == id)
+                .Select(s => FolderMapper.ToModel(s))
+                .FirstAsync();
+
+            if (!folder.IsSuccess)
+                return null;
+
             await _context.Folders
                 .Where(f => f.Id == id)
                 .ExecuteDeleteAsync();
-            return id;
+
+            return folder.Value;
         }
 
         public async Task<Result<Folder>> Get(Guid id)
@@ -47,6 +56,14 @@ namespace FileCloud.DataAccess.Repositories
             var folderEntity = await _context.Folders
                 .Where(f => f.Id == id)
                 .FirstAsync();
+
+            folderEntity.SubFolders = await _context.Folders
+                .Where(f => f.ParentId == id)
+                .ToListAsync();
+
+            folderEntity.Files = await _context.Files
+                .Where(f => f.FolderId == id)
+                .ToListAsync();
 
             var result = FolderMapper.ToModel(folderEntity);
 
@@ -60,6 +77,20 @@ namespace FileCloud.DataAccess.Repositories
                 .ToListAsync();
 
             var result = folderEntities
+                .Select(f => FolderMapper.ToModel(f))
+                .ToList();
+
+            return result;
+        }
+
+        public async Task<List<Result<Folder>>> GetChild(Guid id)
+        {
+            var fileEntities = await _context.Folders
+                .Where(f => f.ParentId == id)
+                .AsNoTracking()
+                .ToListAsync();
+
+            var result = fileEntities
                 .Select(f => FolderMapper.ToModel(f))
                 .ToList();
 
