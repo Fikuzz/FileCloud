@@ -8,7 +8,7 @@ namespace FileCloud.Application.Services
 {
     public class PreviewService
     {
-        private readonly string _previewPath = Path.Combine("wwwroot/uploads", "previews");
+        private readonly string _previewPath = Path.Combine("wwwroot", "previews");
         private readonly ILogger<PreviewService> _logger;
 
         public PreviewService(ILogger<PreviewService> logger)
