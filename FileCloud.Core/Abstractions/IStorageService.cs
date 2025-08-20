@@ -17,7 +17,7 @@ namespace FileCloud.Core.Abstractions
         Task<Result<Core.Models.File>> DeleteFileAsync(Guid fileId);
 
         Task<Result<string>> MoveFolder(Guid folderId, Guid newParentId);
-        Task<Result<string>> MoveFile(Guid fileId, Guid newFolderId);
+        Task<Result<string>> MoveFile(Guid fileId, Guid? newFolderId);
 
         Task<Result<string>> RenameFolder(Guid folderId, string newName);
         Task<Result<string>> RenameFile(Guid fileId, string newName);
@@ -26,6 +26,6 @@ namespace FileCloud.Core.Abstractions
         Task<Result<byte[]>> GetFileBytes(Guid id);
 
         Task<Result<string>> BuildFullPathForFileAsync(Guid fileId);
-        Task<Result<string>> BuildFullPathForFolderAsync(Guid folderId);
+        Task<Result<string>> BuildFullPathForFolderAsync(Guid? folderId);
     }
 }
