@@ -13,7 +13,9 @@ namespace FileCloud.DataAccess.Migrations
 {
     [DbContext(typeof(FileCloudDbContext))]
     [Migration("20250529232836_init")]
+#pragma warning disable CS8981 // Имя типа содержит только строчные символы ASCII. Такие имена могут резервироваться для языка.
     partial class init
+#pragma warning restore CS8981 // Имя типа содержит только строчные символы ASCII. Такие имена могут резервироваться для языка.
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

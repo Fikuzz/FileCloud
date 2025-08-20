@@ -3,6 +3,7 @@ using System;
 using FileCloud.DataAccess;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FileCloud.DataAccess.Migrations
 {
     [DbContext(typeof(FileCloudDbContext))]
-    partial class FileCloudDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250820131709_FolderForFileNotRequired")]
+    partial class FolderForFileNotRequired
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -28,7 +31,7 @@ namespace FileCloud.DataAccess.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("FolderId")
+                    b.Property<Guid?>("FolderId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("Name")
@@ -71,13 +74,6 @@ namespace FileCloud.DataAccess.Migrations
                         .IsUnique();
 
                     b.ToTable("Folders");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("11111111-1111-1111-1111-111111111111"),
-                            Name = "Root"
-                        });
                 });
 
             modelBuilder.Entity("FileCloud.DataAccess.Entities.FileEntity", b =>
@@ -85,8 +81,7 @@ namespace FileCloud.DataAccess.Migrations
                     b.HasOne("FileCloud.DataAccess.Entities.FolderEntity", "Folder")
                         .WithMany("Files")
                         .HasForeignKey("FolderId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Folder");
                 });
