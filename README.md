@@ -10,7 +10,7 @@
 - [x] Downloading files
 - [x] File preview on double click
 - [x] Delete files (Del key)
-- [ ] Rename files
+- [x] Rename files
 - [x] Right-click context menu
 - [x] Auto-refresh on file changes
 
