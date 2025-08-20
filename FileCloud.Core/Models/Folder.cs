@@ -9,13 +9,13 @@ namespace FileCloud.Core.Models
 {
     public class Folder
     {
-        private Folder(Guid id, string name, Guid? parentId, ICollection<Guid> subFoldersId, ICollection<Guid> filesId)
+        private Folder(Guid id, string name, Guid? parentId, ICollection<Folder> subFolders, ICollection<File> files)
         {
             Id = id;
             Name = name;
             ParentId = parentId;
-            SubFoldersId = subFoldersId;
-            FilesId = filesId;
+            SubFolders = subFolders;
+            Files = files;
         }
 
         public Guid Id { get; set; } = Guid.NewGuid();
@@ -23,17 +23,17 @@ namespace FileCloud.Core.Models
         // Родительская папка
         public Guid? ParentId { get; set; }
         // Дочерние папки
-        public ICollection<Guid> SubFoldersId { get; set; } = new List<Guid>();
+        public ICollection<Folder> SubFolders { get; set; } = new List<Folder>();
         // Файлы в папке
-        public ICollection<Guid> FilesId { get; set; } = new List<Guid>();
+        public ICollection<File> Files { get; set; } = new List<File>();
 
-        public static Result<Folder> Create(Guid id, string name, Guid? parentId, ICollection<Guid> subFoldersId, ICollection<Guid> filesId)
+        public static Result<Folder> Create(Guid id, string name, Guid? parentId, ICollection<Folder> subFolders, ICollection<File> files)
         {
             if(string.IsNullOrEmpty(name))
             {
                 return Result<Folder>.Fail("incorect folder name");
             }
-            var folder = new Folder(id, name, parentId, subFoldersId, filesId);
+            var folder = new Folder(id, name, parentId, subFolders, files);
             return Result<Folder>.Success(folder);
         }
     }
