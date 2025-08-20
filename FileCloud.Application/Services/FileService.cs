@@ -46,7 +46,7 @@ namespace FileCloud.Application.Services
             var result = await _filesRepositories.Rename(id, name);
             return Result<Guid>.Success(result);
         }
-        public async Task<Result<Guid>> MoveFile(Guid id, string? newPath, Guid folderId)
+        public async Task<Result<Guid>> MoveFile(Guid id, string newPath, Guid folderId)
         {
             var result = await _filesRepositories.Move(id, newPath, folderId);
             return Result<Guid>.Success(result);
@@ -84,10 +84,10 @@ namespace FileCloud.Application.Services
                 _logger.LogInformation(error);
 
             var SuccessValues = result.Where(f => f.IsSuccess)
-                .Select(v => v.Value)
+                .Select(v => v.Value!)
                 .ToList();
 
-            if (SuccessValues.Count == 0)
+            if (SuccessValues == null || SuccessValues.Count == 0)
                 return Result<List<Model.File>>.Fail("couldn't get any objects");
             else
                 return Result<List<Model.File>>.Success(SuccessValues);

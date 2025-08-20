@@ -32,7 +32,7 @@ namespace FileCloud.Application.Services
                 _logger.LogInformation(error);
 
             var SuccessValues = result.Where(f => f.IsSuccess)
-                .Select(v => v.Value)
+                .Select(v => v.Value!)
                 .ToList();
 
             if (SuccessValues.Count == 0)
@@ -46,29 +46,29 @@ namespace FileCloud.Application.Services
         }
         public async Task<Result<Guid>> CreateFolder(string name, Guid? parentId)
         {
-            var folderResult = Folder.Create(Guid.NewGuid(), name, parentId, null, null);
+            var folderResult = Folder.Create(Guid.NewGuid(), name, parentId, new List<Folder>(), new List<Core.Models.File>());
             if (!folderResult.IsSuccess)
                 return Result<Guid>.Fail(folderResult.Error);
 
             var result = await _folderRepository.Create(folderResult.Value);
-            return Result<Guid>.Success(result);
+            return result;
         }
         public async Task<Result<Guid>> RenameFolder(Guid id, string name)
         {
             var result = await _folderRepository.Rename(id, name);
-            return Result<Guid>.Success(result);
+            return result;
         }
         public async Task<Result<Guid>> MoveFolder(Guid id, Folder? parent)
         {
             var result = await _folderRepository.Move(id, parent);
-            return Result<Guid>.Success(result);
+            return result;
         }
         public async Task<Result<Folder>> DeleteFolder(Guid id)
         {
             try
             {
                 var result = await _folderRepository.Delete(id);
-                return Result<Folder>.Success(result);
+                return result;
             }
             catch(Exception ex)
             {
