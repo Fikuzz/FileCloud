@@ -82,16 +82,16 @@ namespace FileCloud.Application.Services
                 return Result<Folder>.Fail(folderResult.Error);
 
             // удалить файлы
-            foreach (var fileId in folderResult.Value.FilesId)
+            foreach (var file in folderResult.Value.Files)
             {
-                await DeleteFileAsync(fileId);
-                await _filesService.DeleteFile(fileId);
+                await DeleteFileAsync(file.Id);
+                await _filesService.DeleteFile(file.Id);
             }
 
             // удалить подпапки (рекурсивно)
-            foreach (var subFolderId in folderResult.Value.SubFoldersId)
+            foreach (var subFolder in folderResult.Value.SubFolders)
             {
-                await DeleteFolderCascadeAsync(subFolderId);
+                await DeleteFolderCascadeAsync(subFolder.Id);
             }
 
             // удалить саму папку
@@ -125,6 +125,9 @@ namespace FileCloud.Application.Services
         public async Task<Result<Core.Models.File>> DeleteFileAsync(Guid fileId)
         {
             var file = await _filesService.GetFileById(fileId);
+            if (!file.IsSuccess)
+                return Result<Core.Models.File>.Fail(file.Error);
+
             var path = await BuildFullPathForFileAsync(fileId);
             if (!path.IsSuccess)
                 return Result<Core.Models.File>.Fail(path.Error);
@@ -146,14 +149,15 @@ namespace FileCloud.Application.Services
             var oldPath = await BuildFullPathForFolderAsync(folderId);
             var newPath = await BuildFullPathForFolderAsync(newParentId);
 
-            var destinationPath = Path.Combine(_basePath, newPath.Value, folderResult.Value.Name);
-            if (Directory.Exists(destinationPath))
-                return Result<string>.Fail("Target folder already exists");
-
             if (!oldPath.IsSuccess)
                 return Result<string>.Fail(oldPath.Error);
             if (!newPath.IsSuccess)
                 return Result<string>.Fail(newPath.Error);
+
+            var destinationPath = Path.Combine(_basePath, newPath.Value, folderResult.Value.Name);
+            if (Directory.Exists(destinationPath))
+                return Result<string>.Fail("Target folder already exists");
+
             try
             {
                 Directory.Move(
@@ -166,7 +170,7 @@ namespace FileCloud.Application.Services
             }
             return Result<string>.Success(newPath.Value);
         }
-        public async Task<Result<string>> MoveFile(Guid fileId, Guid newFolderId)
+        public async Task<Result<string>> MoveFile(Guid fileId, Guid? newFolderId)
         {
             var fileResult = await _filesService.GetFileById(fileId);
             if (!fileResult.IsSuccess)
@@ -302,14 +306,17 @@ namespace FileCloud.Application.Services
 
             return await BuildFullPathAsync(fileResult.Value.FolderId, fileResult.Value.Name);
         }
-        public Task<Result<string>> BuildFullPathForFolderAsync(Guid folderId) =>
+        public Task<Result<string>> BuildFullPathForFolderAsync(Guid? folderId) =>
             BuildFullPathAsync(folderId);
 
-        public async Task<Result<string>> BuildFullPathAsync(Guid folderId, string? fileName = null)
+        public async Task<Result<string>> BuildFullPathAsync(Guid? folderId, string? fileName = null)
         {
+            if (folderId == null)
+                return Result<string>.Success(string.Empty);
+
             var parts = new List<string>();
 
-            var currentFolderResult = await _folderService.GetFolder(folderId);
+            var currentFolderResult = await _folderService.GetFolder(folderId.Value);
             if (!currentFolderResult.IsSuccess)
                 return Result<string>.Fail("Folder not found");
 
