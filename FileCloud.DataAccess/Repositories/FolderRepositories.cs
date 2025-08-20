@@ -22,7 +22,7 @@ namespace FileCloud.DataAccess.Repositories
         {
             _context = context;
         }
-        public async Task<Guid> Create(Folder folder)
+        public async Task<Result<Guid>> Create(Folder folder)
         {
             var folderEntity = new FolderEntity()
             {
@@ -31,43 +31,47 @@ namespace FileCloud.DataAccess.Repositories
             };
             await _context.Folders.AddAsync(folderEntity);
             await _context.SaveChangesAsync();
-            return folderEntity.Id;
+            return Result<Guid>.Success(folderEntity.Id);
         }
 
-        public async Task<Folder> Delete(Guid id)
+        public async Task<Result<Folder>> Delete(Guid id)
         {
+            if (FileCloudDbContext.RootFolderId == id)
+                return Result<Folder>.Fail("Attempt to delete the root folder");
+
             var folder = await _context.Folders
                 .Where(f => f.Id == id)
                 .Select(s => FolderMapper.ToModel(s))
                 .FirstAsync();
 
             if (!folder.IsSuccess)
-                return null;
+                return Result<Folder>.Fail($"Folder with id:{id} not found");
 
             await _context.Folders
                 .Where(f => f.Id == id)
                 .ExecuteDeleteAsync();
 
-            return folder.Value;
+            return Result<Folder>.Success(folder.Value);
         }
 
         public async Task<Result<Folder>> Get(Guid id)
         {
-            var folderEntity = await _context.Folders
-                .Where(f => f.Id == id)
-                .FirstAsync();
+            try
+            {
+                var folderEntity = await _context.Folders
+                    .Include(f => f.Files)       // Подгружаем файлы
+                    .Include(f => f.SubFolders)  // Подгружаем подпапки
+                    .FirstOrDefaultAsync(f => f.Id == id);
+                if (folderEntity == null)
+                    return Result<Folder>.Fail($"Folder with id:{id} not found");
+                var result = FolderMapper.ToModel(folderEntity);
 
-            folderEntity.SubFolders = await _context.Folders
-                .Where(f => f.ParentId == id)
-                .ToListAsync();
-
-            folderEntity.Files = await _context.Files
-                .Where(f => f.FolderId == id)
-                .ToListAsync();
-
-            var result = FolderMapper.ToModel(folderEntity);
-
-            return result;
+                return result;
+            }
+            catch(Exception ex)
+            {
+                return Result<Folder>.Fail(ex.Message);
+            }
         }
 
         public async Task<List<Result<Folder>>> GetAll()
@@ -97,7 +101,7 @@ namespace FileCloud.DataAccess.Repositories
             return result;
         }
 
-        public async Task<Guid> Move(Guid id, Folder? parent)
+        public async Task<Result<Guid>> Move(Guid id, Folder? parent)
         {
             var newParentId = parent?.Id;
 
@@ -105,16 +109,16 @@ namespace FileCloud.DataAccess.Repositories
                 .Where(f => f.Id == id)
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(f => f.ParentId, _ => newParentId));
-            return id;
+            return Result<Guid>.Success(id);
         }
 
-        public async Task<Guid> Rename(Guid id, string name)
+        public async Task<Result<Guid>> Rename(Guid id, string name)
         {
             await _context.Folders
                 .Where(f => f.Id == id)
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(f => f.Name, _ => name));
-            return id;
+            return Result<Guid>.Success(id);
         }
     }
 }
