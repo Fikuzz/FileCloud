@@ -16,7 +16,7 @@ namespace FileCloud.Core.Abstractions
         Result<string> DeleteFolderByPath(string path);
         Task<Result<Core.Models.File>> DeleteFileAsync(Guid fileId);
 
-        Task<Result<string>> MoveFolder(Guid folderId, Guid newParentId);
+        Task<Result<string>> MoveFolder(Guid folderId, Guid? newParentId);
         Task<Result<string>> MoveFile(Guid fileId, Guid? newFolderId);
 
         Task<Result<string>> RenameFolder(Guid folderId, string newName);
