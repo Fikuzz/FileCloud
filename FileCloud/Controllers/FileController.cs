@@ -53,17 +53,18 @@ namespace FileCloud.Controllers
         [HttpPost("stream-upload")]
         [Consumes("multipart/form-data")]
         [ApiExplorerSettings(IgnoreApi = true)]
-        public async Task<ActionResult<ApiResult<FileResponse>>> UploadFile([FromBody] UploadFileRequest request)
+        public async Task<ActionResult<ApiResult<FileResponse>>> UploadFile(
+            [FromForm] Guid folderId,
+            [FromForm] IFormFile file)
         {
             if (!Request.HasFormContentType)
                 return BadRequest(ApiResult<FileResponse>.Fail("Некорректный Content-Type"));
 
-            var file = Request.Form.Files.FirstOrDefault();
             if (file == null)
                 return BadRequest(ApiResult<FileResponse>.Fail("Файл не был загружен"));
 
             // Создание объекта файла
-            var fileDTO = Core.Models.File.Create(Guid.NewGuid(), file.FileName, string.Empty, file.Length, request.FolderId);
+            var fileDTO = Core.Models.File.Create(Guid.NewGuid(), file.FileName, string.Empty, file.Length, folderId);
             if (!fileDTO.IsSuccess)
                 return BadRequest(ApiResult<FileResponse>.Fail(fileDTO.Error));
 
