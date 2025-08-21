@@ -18,27 +18,21 @@ namespace FileCloud.Application.Services
         {
             return await _folderRepository.GetAll();
         }
-        public async Task<Result<List<Folder>>> GetChildFolder(Guid id)
+        public async Task<Result<List<Folder>>> GetSubFolder(Guid id)
         {
-            var result = await _folderRepository.GetChild(id);
-            if(result.Count == 0)
-                return Result<List<Folder>>.Success(new List<Folder>());
-
-            var errors = result.Where(f => !f.IsSuccess)
-                .Select(e => e.Error)
-                .ToList();
-
-            foreach (var error in errors)
-                _logger.LogInformation(error);
-
-            var SuccessValues = result.Where(f => f.IsSuccess)
-                .Select(v => v.Value!)
-                .ToList();
-
-            if (SuccessValues.Count == 0)
-                return Result<List<Folder>>.Fail("couldn't get any objects");
-            else
-                return Result<List<Folder>>.Success(SuccessValues);
+            var result = await _folderRepository.Get(id);
+            if (!result.IsSuccess)
+                return Result<List<Folder>>.Fail(result.Error);
+            var folder = result.Value;
+            return Result<List<Folder>>.Success(folder.SubFolders.ToList()); 
+        }
+        public async Task<Result<List<Core.Models.File>>> GetFiles(Guid id)
+        {
+            var result = await _folderRepository.Get(id);
+            if (!result.IsSuccess)
+                return Result<List<Core.Models.File>>.Fail(result.Error);
+            var folder = result.Value;
+            return Result<List<Core.Models.File>>.Success(folder.Files.ToList());
         }
         public async Task<Result<Folder>> GetFolder(Guid id)
         {
@@ -58,9 +52,9 @@ namespace FileCloud.Application.Services
             var result = await _folderRepository.Rename(id, name);
             return result;
         }
-        public async Task<Result<Guid>> MoveFolder(Guid id, Folder? parent)
+        public async Task<Result<Guid>> MoveFolder(Guid id, Guid? parentId)
         {
-            var result = await _folderRepository.Move(id, parent);
+            var result = await _folderRepository.Move(id, parentId);
             return result;
         }
         public async Task<Result<Folder>> DeleteFolder(Guid id)
