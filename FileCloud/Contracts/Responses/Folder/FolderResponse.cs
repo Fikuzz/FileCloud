@@ -1,4 +1,4 @@
-﻿namespace FileCloud.Contracts
+﻿namespace FileCloud.Contracts.Responses.Folder
 {
     public record FolderResponse(
         Guid Id,
