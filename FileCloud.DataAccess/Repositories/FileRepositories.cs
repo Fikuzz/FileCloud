@@ -46,6 +46,7 @@ namespace FileCloud.DataAccess.Repositories
         {
             var fileEntity = new FileEntity
             {
+                Id = file.Id,
                 Name = file.Name,
                 Path = file.Path,
                 Size = file.Size,
