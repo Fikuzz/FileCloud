@@ -1,4 +1,8 @@
 ﻿using FileCloud.Contracts;
+using FileCloud.Contracts.Requests.Folder;
+using FileCloud.Contracts.Responses;
+using FileCloud.Contracts.Responses.File;
+using FileCloud.Contracts.Responses.Folder;
 using FileCloud.Core.Abstractions;
 using FileCloud.Core.Models;
 using FileCloud.Hubs;
@@ -24,11 +28,11 @@ namespace FileCloud.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<FolderResult>>> GetAllFolders()
+        public async Task<ActionResult<List<ApiResult<FolderResponse>>>> GetAllFolders()
         {
             var foldersResult = await _folderService.GetAllFolders();
 
-            var response = foldersResult.Select(r => new FolderResult
+            var response = foldersResult.Select(r => new ApiResult<FolderResponse>
             {
                 Response = r.IsSuccess ? new FolderResponse(r.Value.Id, r.Value.Name, r.Value.ParentId) : null,
                 Error = r.IsSuccess ? null : r.Error
@@ -37,26 +41,42 @@ namespace FileCloud.Controllers
             return Ok(response);
         }
 
-        [HttpGet("{id:Guid}")]
-        public async Task<ActionResult<FolderResponse>> GetFolder(Guid id)
+        [HttpGet("{id:guid}")]
+        public async Task<ActionResult<ApiResult<FolderResponse>>> GetFolder(Guid id)
         {
             var FolderResult = await _folderService.GetFolder(id);
             if (!FolderResult.IsSuccess)
             {
-                return NotFound(FolderResult.Error);
+                return NotFound(ApiResult<FolderResponse>.Fail(FolderResult.Error));
             }
 
-            return Ok(FolderResult.Value);
+            var response = new FolderResponse(
+                FolderResult.Value.Id,
+                FolderResult.Value.Name,
+                FolderResult.Value.ParentId
+            );
+
+            return Ok(ApiResult<FolderResponse>.Success(response));
         }
 
-        [HttpGet("child/{id:guid}")]
-        public async Task<ActionResult<List<FolderResponse>>> GetChildFolders(Guid id)
+        [HttpGet("{id:guid}/childs")]
+        public async Task<ActionResult<ApiResult<ContentResponse>>> GetFolderChilds(Guid id)
         {
-            var result = await _folderService.GetChildFolder(id);
-            if (!result.IsSuccess)
-                return NotFound(result.Error);
+            var foldersResult = await _folderService.GetSubFolder(id);
+            if (!foldersResult.IsSuccess)
+                return NotFound(ApiResult<ContentResponse>.Fail(foldersResult.Error));
 
-            return Ok(result.Value);
+            var filesResult = await _folderService.GetFiles(id);
+            if (!filesResult.IsSuccess)
+                return NotFound(ApiResult<ContentResponse>.Fail(filesResult.Error));
+
+            var response = new ContentResponse
+            {
+                Files = filesResult.Value.Select(r => new FileResponse(r.Id, r.Name, r.Size)).ToList(),
+                Folders = foldersResult.Value.Select(r => new FolderResponse(r.Id, r.Name, r.ParentId)).ToList()
+            };
+
+            return Ok(ApiResult<ContentResponse>.Success(response));
         }
 
         [HttpPost]
@@ -75,7 +95,7 @@ namespace FileCloud.Controllers
             return Ok(result.Value);
         }
 
-        [HttpDelete("{id:guid}")]
+        [HttpDelete("delete/{id:guid}")]
         public async Task<ActionResult> DeleteFolder(Guid id)
         {
             var folderResult = await _storageService.DeleteFolderCascadeAsync(id);
@@ -83,6 +103,57 @@ namespace FileCloud.Controllers
                 return BadRequest(folderResult.Error);
 
             return Ok();
+        }
+
+        [HttpPut("rename/{id:guid}")]
+        public async Task<ActionResult<FolderResponse>> RenameFolder(Guid id, [FromBody] RenameFolderRequest request)
+        {
+            var oldFolderResult = await _folderService.GetFolder(id);
+            if(!oldFolderResult.IsSuccess)
+                return NotFound(oldFolderResult.Error);
+
+            var folderResult = await _storageService.RenameFolder(id, request.NewName);
+            if (!folderResult.IsSuccess)
+                return BadRequest(folderResult.Error);
+
+            var DbResult = await _folderService.RenameFolder(id, request.NewName);
+            if (!DbResult.IsSuccess)
+            {
+                await _storageService.RenameFolder(id, oldFolderResult.Value.Name);
+                return BadRequest(DbResult.Error);
+            }
+            
+            var responseResult = await _folderService.GetFolder(DbResult.Value);
+            if (!responseResult.IsSuccess)
+                return NotFound(responseResult.Error);
+
+            var response = new FolderResponse(responseResult.Value.Id, responseResult.Value.Name, responseResult.Value.ParentId);
+            return Ok(response);
+        }
+        [HttpPut("move/{id:guid}")]
+        public async Task<ActionResult<FolderResponse>> MoveFolder(Guid id, [FromBody] MoveFolderRequest request)
+        {
+            var oldFolderResult = await _folderService.GetFolder(id);
+            if (!oldFolderResult.IsSuccess)
+                return BadRequest(oldFolderResult.Error);
+
+            var folderResult = await _storageService.MoveFolder(id, request.FolderId);
+            if (!folderResult.IsSuccess)
+                return BadRequest(folderResult.Error);
+
+            var DbResult = await _folderService.MoveFolder(id, request.FolderId);
+            if (!DbResult.IsSuccess)
+            {
+                await _storageService.MoveFolder(id, oldFolderResult.Value.ParentId);
+                return BadRequest(DbResult.Error);
+            }
+
+            var responseResult = await _folderService.GetFolder(DbResult.Value);
+            if (!responseResult.IsSuccess)
+                return NotFound(responseResult.Error);
+
+            var response = new FolderResponse(responseResult.Value.Id, responseResult.Value.Name, responseResult.Value.ParentId);
+            return Ok(response);
         }
     }
 }

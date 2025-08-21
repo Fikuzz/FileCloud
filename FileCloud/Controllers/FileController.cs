@@ -1,4 +1,7 @@
 ﻿using FileCloud.Contracts;
+using FileCloud.Contracts.Requests.File;
+using FileCloud.Contracts.Requests.Folder;
+using FileCloud.Contracts.Responses.File;
 using FileCloud.Core.Abstractions;
 using FileCloud.Hubs;
 using Microsoft.AspNetCore.Mvc;
@@ -22,13 +25,13 @@ namespace FileCloud.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<Contracts.FileResult>>> GetFiles()
+        public async Task<ActionResult<List<ApiResult<FileResponse>>>> GetFiles()
         {
             var results = await _filesService.GetAllFiles();
 
-            var response = results.Select(r => new Contracts.FileResult
+            var response = results.Select(r => new ApiResult<FileResponse>
             {
-                File = r.IsSuccess ? new FileResponse(r.Value.Id, r.Value.Name, r.Value.Size, r.Value.Path) : null,
+                Response = r.IsSuccess ? new FileResponse(r.Value.Id, r.Value.Name, r.Value.Size) : null,
                 Error = r.IsSuccess ? null : r.Error
             }).ToList();
 
@@ -36,69 +39,67 @@ namespace FileCloud.Controllers
         }
 
         [HttpGet("{id:Guid}")]
-        public async Task<ActionResult<FileResponse>> GetFileById(Guid id)
+        public async Task<ActionResult<ApiResult<FileResponse>>> GetFileById(Guid id)
         {
             var result = await _filesService.GetFileById(id);
             if (!result.IsSuccess) 
-                return BadRequest(result.Error);
+                return BadRequest(ApiResult<FileResponse>.Fail(result.Error));
+
             var file = result.Value;
-            var response = new FileResponse(id, file.Name, file.Size, file.Path);
-            return Ok(response);
+            var response = new FileResponse(id, file.Name, file.Size);
+            return Ok(ApiResult<FileResponse>.Success(response));
         }
 
         [HttpPost("stream-upload")]
         [Consumes("multipart/form-data")]
         [ApiExplorerSettings(IgnoreApi = true)]
-        public async Task<ActionResult> UploadStream([FromQuery] Guid folderId, [FromQuery] string? path = null)
+        public async Task<ActionResult<ApiResult<FileResponse>>> UploadFile([FromBody] UploadFileRequest request)
         {
             if (!Request.HasFormContentType)
-                return BadRequest("Некорректный Content-Type");
+                return BadRequest(ApiResult<FileResponse>.Fail("Некорректный Content-Type"));
 
-            var files = Request.Form.Files;
-            if (files == null || files.Count == 0)
-                return BadRequest("Файлы не были загружены");
+            var file = Request.Form.Files.FirstOrDefault();
+            if (file == null)
+                return BadRequest(ApiResult<FileResponse>.Fail("Файл не был загружен"));
 
-            var uploadedFiles = new List<string>();
-            
-            foreach (var file in files)
+            // Создание объекта файла
+            var fileDTO = Core.Models.File.Create(Guid.NewGuid(), file.FileName, string.Empty, file.Length, request.FolderId);
+            if (!fileDTO.IsSuccess)
+                return BadRequest(ApiResult<FileResponse>.Fail(fileDTO.Error));
+
+            // Загрузка файла в хранилище
+            await using var fileStream = file.OpenReadStream();
+            var storageResult = await _storageService.LoadFileAsStream(fileStream, fileDTO.Value);
+            if (!storageResult.IsSuccess)
+                return BadRequest(ApiResult<FileResponse>.Fail(storageResult.Error));
+
+            // Сохранение информации в базе данных
+            var dbResult = await _filesService.UploadFile(storageResult.Value);
+            if (!dbResult.IsSuccess)
             {
-                var fileDTO = Core.Models.File.Create(Guid.NewGuid(), file.FileName, path, file.Length, folderId);
-                
-                if (!fileDTO.IsSuccess)
-                    return BadRequest(fileDTO.Error);
-
-                await using var fileStream = file.OpenReadStream();
-                var result = await _storageService.LoadFileAsStream(fileStream, fileDTO.Value);
-                if (!result.IsSuccess)
-                    return BadRequest(result.Error);
-
-                var dbResult = await _filesService.UploadFile(result.Value);
-                if(!dbResult.IsSuccess)
-                {
-                    await _storageService.DeleteFileAsync(fileDTO.Value.Id);
-                    return BadRequest(dbResult.Error);
-                }
-
-                await _hubContext.Clients.All.SendAsync("FileLoaded", result.Value.ToString());
-
-                uploadedFiles.Add(file.FileName);
+                await _storageService.DeleteFileAsync(fileDTO.Value.Id);
+                return BadRequest(ApiResult<FileResponse>.Fail(dbResult.Error));
             }
 
-            return Ok(new { Uploaded = uploadedFiles });
+            // Оповещение через SignalR
+            await _hubContext.Clients.All.SendAsync("FileLoaded", storageResult.Value.ToString());
+
+            var fileResponse = new FileResponse(fileDTO.Value.Id, fileDTO.Value.Name, fileDTO.Value.Size);
+            return Ok(ApiResult<FileResponse>.Success(fileResponse));
         }
 
-        [HttpPost("delete")]
-        public async Task<ActionResult<string>> DeleteFile([FromBody] Guid id)
+        [HttpDelete("delete/{id:Guid}")]
+        public async Task<ActionResult<ApiResult<DeleteFileResponse>>> DeleteFile(Guid id)
         {
             var deleteResult = await _storageService.DeleteFileAsync(id);
             if(!deleteResult.IsSuccess)
-                return BadRequest(deleteResult.Error);
+                return BadRequest(ApiResult<DeleteFileResponse>.Fail(deleteResult.Error));
 
             var deletedFileName = await _filesService.DeleteFile(id);
             if (!deletedFileName.IsSuccess)
-                return BadRequest(deletedFileName.Error);
+                return BadRequest(ApiResult<DeleteFileResponse>.Fail(deletedFileName.Error));
 
-            return Ok(deletedFileName.Value);
+            return Ok(ApiResult<DeleteFileResponse>.Success(new DeleteFileResponse(deletedFileName.Value)));
         }
 
         [HttpGet("preview/{id:guid}")]
@@ -127,7 +128,7 @@ namespace FileCloud.Controllers
             return File(bytesResult.Value, "application/octet-stream", file.Value.Name);
         }
 
-        [HttpPut("{id}/rename")]
+        [HttpPut("rename/{id}")]
         public async Task<ActionResult> RenameFile(Guid id, [FromBody] RenameFileRequest dto)
         {
             var result = await _storageService.RenameFile(id, dto.NewName);
@@ -147,21 +148,21 @@ namespace FileCloud.Controllers
             return Ok(updated.Value);
         }
 
-        [HttpPut("{id}/move")]
-        public async Task<ActionResult> MoveFile(Guid id, [FromBody] Guid folderId)
+        [HttpPut("move/{id}")]
+        public async Task<ActionResult> MoveFile(Guid id, [FromBody] MoveFileRequest dto)
         {
             var oldfolderResult = await _filesService.GetFileById(id);
             if(!oldfolderResult.IsSuccess)
                 return NotFound();
 
-            var result = await _storageService.MoveFile(id, folderId);
+            var result = await _storageService.MoveFile(id, dto.FolderId);
             if(!result.IsSuccess)
                 return BadRequest(result.Error);
 
-            var updated = await _filesService.MoveFile(id, result.Value, folderId);
+            var updated = await _filesService.MoveFile(id, result.Value, dto.FolderId);
             if (!updated.IsSuccess)
             {
-                _storageService.MoveFile(id, oldfolderResult.Value.FolderId);
+                await _storageService.MoveFile(id, oldfolderResult.Value.FolderId);
                 return BadRequest(updated.Error);
             }
             return Ok(updated.Value);
