@@ -140,7 +140,7 @@ namespace FileCloud.Application.Services
             return Result<Core.Models.File>.Success(file.Value);
         }
 
-        public async Task<Result<string>> MoveFolder(Guid folderId, Guid newParentId)
+        public async Task<Result<string>> MoveFolder(Guid folderId, Guid? newParentId)
         {
             var folderResult = await _folderService.GetFolder(folderId);
             if (!folderResult.IsSuccess)
