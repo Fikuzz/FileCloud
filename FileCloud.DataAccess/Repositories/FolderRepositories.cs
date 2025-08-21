@@ -101,14 +101,12 @@ namespace FileCloud.DataAccess.Repositories
             return result;
         }
 
-        public async Task<Result<Guid>> Move(Guid id, Folder? parent)
+        public async Task<Result<Guid>> Move(Guid id, Guid? parentId)
         {
-            var newParentId = parent?.Id;
-
             await _context.Folders
                 .Where(f => f.Id == id)
                 .ExecuteUpdateAsync(s => s
-                    .SetProperty(f => f.ParentId, _ => newParentId));
+                    .SetProperty(f => f.ParentId, _ => parentId));
             return Result<Guid>.Success(id);
         }
 
