@@ -15,6 +15,6 @@ namespace FileCloud.Core.Abstractions
         Task<List<Result<Folder>>> GetChild(Guid id);
         Task<Result<Folder>> Get(Guid id);
         Task<Result<Guid>> Rename(Guid id, string name);
-        Task<Result<Guid>> Move(Guid id, Folder? parent);
+        Task<Result<Guid>> Move(Guid id, Guid? parentId);
     }
 }
