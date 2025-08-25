@@ -79,7 +79,7 @@ namespace FileCloud.Controllers
             return Ok(ApiResult<ContentResponse>.Success(response));
         }
 
-        [HttpPost]
+        [HttpPost("create")]
         public async Task<ActionResult> CreateFolder([FromBody] FolderRequest request)
         {
             var folderResult = await _storageService.CreateNewFolder(request.Name, request.parentId);
