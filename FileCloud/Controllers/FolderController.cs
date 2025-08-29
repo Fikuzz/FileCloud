@@ -102,6 +102,8 @@ namespace FileCloud.Controllers
             if (!folderResult.IsSuccess)
                 return BadRequest(folderResult.Error);
 
+            // Оповещение через SignalR
+            await _hubContext.Clients.All.SendAsync("FolderDeleted", folderResult.Value.Id);
             return Ok();
         }
 

@@ -83,7 +83,7 @@ namespace FileCloud.Controllers
             }
 
             // Оповещение через SignalR
-            await _hubContext.Clients.All.SendAsync("FileLoaded", storageResult.Value.ToString());
+            await _hubContext.Clients.All.SendAsync("FileLoaded", storageResult.Value);
 
             var fileResponse = new FileResponse(fileDTO.Value.Id, fileDTO.Value.Name, fileDTO.Value.Size);
             return Ok(ApiResult<FileResponse>.Success(fileResponse));
@@ -99,6 +99,9 @@ namespace FileCloud.Controllers
             var deletedFileName = await _filesService.DeleteFile(id);
             if (!deletedFileName.IsSuccess)
                 return BadRequest(ApiResult<DeleteFileResponse>.Fail(deletedFileName.Error));
+
+            // Оповещение через SignalR
+            await _hubContext.Clients.All.SendAsync("FileDeleted", deleteResult.Value.Id);
 
             return Ok(ApiResult<DeleteFileResponse>.Success(new DeleteFileResponse(deletedFileName.Value)));
         }
