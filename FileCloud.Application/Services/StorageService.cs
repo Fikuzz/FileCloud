@@ -284,17 +284,17 @@ namespace FileCloud.Application.Services
                 _logger.LogWarning(fileResult.Error);
                 return Result<byte[]>.Fail(fileResult.Error);
             }
-            var file = fileResult.Value;
-            if (!System.IO.File.Exists(file.Path))
+            var filePath = Path.Combine(fileResult.Value.Path, fileResult.Value.Name);
+            if (!System.IO.File.Exists(filePath))
             {
-                var error = $"File missing on disk: {file.Path}";
+                var error = $"File missing on disk: {filePath}";
                 _logger.LogWarning(error);
                 return Result<byte[]>.Fail(error);
             }
 
-            _logger.LogInformation($"Отправка файла клиенту: {file.Path}");
+            _logger.LogInformation($"Отправка файла клиенту: {filePath}");
 
-            var bytes = await System.IO.File.ReadAllBytesAsync(file.Path);
+            var bytes = await System.IO.File.ReadAllBytesAsync(filePath);
             return Result<byte[]>.Success(bytes);
         }
 
