@@ -96,15 +96,16 @@ namespace FileCloud.Controllers
         }
 
         [HttpDelete("delete/{id:guid}")]
-        public async Task<ActionResult> DeleteFolder(Guid id)
+        public async Task<ActionResult<DeleteFolderResponse>> DeleteFolder(Guid id)
         {
             var folderResult = await _storageService.DeleteFolderCascadeAsync(id);
             if (!folderResult.IsSuccess)
                 return BadRequest(folderResult.Error);
 
+            var response = new DeleteFolderResponse(folderResult.Value.Name);
             // Оповещение через SignalR
             await _hubContext.Clients.All.SendAsync("FolderDeleted", folderResult.Value.Id);
-            return Ok();
+            return Ok(response);
         }
 
         [HttpPut("rename/{id:guid}")]
