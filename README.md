@@ -18,7 +18,7 @@
 - [x] Multi-select with Shift/Ctrl
 - [ ] Drag & drop uploads
 - [ ] Upload progress indicator
-- [ ] File sorting and filtering
+- [x] File sorting and filtering
 
 ## 🔐 Security
 - [ ] File size/type validation
@@ -26,6 +26,6 @@
 - [ ] Log unauthorized access attempts
 
 ## 💡 Advanced
-- [ ] Folder creation and navigation
-- [ ] Recycle bin for deleted files
+- [x] Folder creation and navigation
+- [x] Recycle bin for deleted files
 - [ ] File sharing via links
