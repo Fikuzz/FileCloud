@@ -68,10 +68,11 @@ namespace FileCloud.Application.Services
                 return Result<string>.Fail(pathResult.Error);
 
             var fullPath = Path.Combine(_basePath, pathResult.Value, name);
-            if (!Directory.Exists(fullPath))
+            if (Directory.Exists(fullPath))
             {
-                Directory.CreateDirectory(fullPath);
+                return Result<string>.Fail("Folder already exist");
             }
+            Directory.CreateDirectory(fullPath);
             return Result<string>.Success(fullPath);
         }
     
