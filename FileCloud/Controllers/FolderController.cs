@@ -92,6 +92,8 @@ namespace FileCloud.Controllers
                 _storageService.DeleteFolderByPath(folderResult.Value);
                 return BadRequest(result.Error);
             }
+
+            await _hubContext.Clients.All.SendAsync("FolderCreated", result.Value);
             return Ok(result.Value);
         }
 
