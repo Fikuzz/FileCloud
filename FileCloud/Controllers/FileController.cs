@@ -83,7 +83,7 @@ namespace FileCloud.Controllers
             }
 
             // Оповещение через SignalR
-            await _hubContext.Clients.All.SendAsync("FileLoaded", storageResult.Value);
+            await _hubContext.Clients.Groups(folderId.ToString()).SendAsync("FileLoaded", storageResult.Value.Id);
 
             var fileResponse = new FileResponse(fileDTO.Value.Id, fileDTO.Value.Name, fileDTO.Value.Size);
             return Ok(ApiResult<FileResponse>.Success(fileResponse));
@@ -101,7 +101,9 @@ namespace FileCloud.Controllers
                 return BadRequest(ApiResult<DeleteFileResponse>.Fail(deletedFileName.Error));
 
             // Оповещение через SignalR
-            await _hubContext.Clients.All.SendAsync("FileDeleted", deleteResult.Value.Id);
+            await _hubContext.Clients
+                .Group(deleteResult.Value.FolderId.ToString())
+                .SendAsync("FileDeleted", deleteResult.Value.Id);
 
             return Ok(ApiResult<DeleteFileResponse>.Success(new DeleteFileResponse(deletedFileName.Value)));
         }
@@ -149,6 +151,14 @@ namespace FileCloud.Controllers
                 await _storageService.RenameFile(id, oldName);
                 return BadRequest(updated.Error);
             }
+
+            var file = await _filesService.GetFileById(id);
+            if (!file.IsSuccess)
+            {
+                await _hubContext.Clients
+                    .Group(file.Value.FolderId.ToString())
+                    .SendAsync("FileRenamed", new RenameFileResponse(id, dto.NewName));
+            }
             return Ok(updated.Value);
         }
 
@@ -169,6 +179,17 @@ namespace FileCloud.Controllers
                 await _storageService.MoveFile(id, oldfolderResult.Value.FolderId);
                 return BadRequest(updated.Error);
             }
+
+            // Уведомляем старую папку об удалении файла
+            await _hubContext.Clients
+                .Group(oldfolderResult.Value.FolderId.ToString())
+                .SendAsync("FileDeleted", id);
+
+            // Уведомляем новую папку о добавлении файла
+            await _hubContext.Clients
+                .Group(dto.FolderId.ToString())
+                .SendAsync("FileLoaded", id);
+
             return Ok(updated.Value);
         }
     }

@@ -93,7 +93,9 @@ namespace FileCloud.Controllers
                 return BadRequest(result.Error);
             }
 
-            await _hubContext.Clients.All.SendAsync("FolderCreated", result.Value);
+            await _hubContext.Clients
+                .Group(request.parentId.ToString())
+                .SendAsync("FolderCreated", result.Value);
             return Ok(result.Value);
         }
 
@@ -106,7 +108,8 @@ namespace FileCloud.Controllers
 
             var response = new DeleteFolderResponse(folderResult.Value.Name);
             // Оповещение через SignalR
-            await _hubContext.Clients.All.SendAsync("FolderDeleted", folderResult.Value.Id);
+            await _hubContext.Clients.All
+                .SendAsync("FolderDeleted", folderResult.Value.Id);
             return Ok(response);
         }
 
@@ -133,6 +136,9 @@ namespace FileCloud.Controllers
                 return NotFound(responseResult.Error);
 
             var response = new FolderResponse(responseResult.Value.Id, responseResult.Value.Name, responseResult.Value.ParentId);
+            await _hubContext.Clients
+                .Groups(response.ParentId.ToString())
+                .SendAsync("FolderRenamed", response.Name);
             return Ok(response);
         }
         [HttpPut("move/{id:guid}")]
@@ -158,6 +164,12 @@ namespace FileCloud.Controllers
                 return NotFound(responseResult.Error);
 
             var response = new FolderResponse(responseResult.Value.Id, responseResult.Value.Name, responseResult.Value.ParentId);
+            await _hubContext.Clients
+                .Groups(oldFolderResult.Value.ParentId.ToString())
+                .SendAsync("FolderDeleted", response.Id);
+            await _hubContext.Clients
+                .Group(response.ParentId.ToString()
+                .SendAsync("FolderCreated", id);
             return Ok(response);
         }
     }
