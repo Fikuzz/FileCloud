@@ -168,7 +168,7 @@ namespace FileCloud.Controllers
                 .Groups(oldFolderResult.Value.ParentId.ToString())
                 .SendAsync("FolderDeleted", response.Id);
             await _hubContext.Clients
-                .Group(response.ParentId.ToString()
+                .Group(response.ParentId.ToString())
                 .SendAsync("FolderCreated", id);
             return Ok(response);
         }
