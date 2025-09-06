@@ -138,7 +138,7 @@ namespace FileCloud.Controllers
             var response = new FolderResponse(responseResult.Value.Id, responseResult.Value.Name, responseResult.Value.ParentId);
             await _hubContext.Clients
                 .Groups(response.ParentId.ToString())
-                .SendAsync("FolderRenamed", response.Name);
+                .SendAsync("FolderRenamed", new FolderRenameResponse(id, response.Name));
             return Ok(response);
         }
         [HttpPut("move/{id:guid}")]
@@ -168,7 +168,7 @@ namespace FileCloud.Controllers
                 .Groups(oldFolderResult.Value.ParentId.ToString())
                 .SendAsync("FolderDeleted", response.Id);
             await _hubContext.Clients
-                .Group(response.ParentId.ToString())
+                .Group(response.Id.ToString())
                 .SendAsync("FolderCreated", id);
             return Ok(response);
         }

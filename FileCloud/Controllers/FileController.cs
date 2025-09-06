@@ -83,7 +83,9 @@ namespace FileCloud.Controllers
             }
 
             // Оповещение через SignalR
-            await _hubContext.Clients.Groups(folderId.ToString()).SendAsync("FileLoaded", storageResult.Value.Id);
+            await _hubContext.Clients
+                .Groups(folderId.ToString())
+                .SendAsync("FileLoaded", storageResult.Value);
 
             var fileResponse = new FileResponse(fileDTO.Value.Id, fileDTO.Value.Name, fileDTO.Value.Size);
             return Ok(ApiResult<FileResponse>.Success(fileResponse));
@@ -153,12 +155,11 @@ namespace FileCloud.Controllers
             }
 
             var file = await _filesService.GetFileById(id);
-            if (!file.IsSuccess)
-            {
-                await _hubContext.Clients
-                    .Group(file.Value.FolderId.ToString())
-                    .SendAsync("FileRenamed", new RenameFileResponse(id, dto.NewName));
-            }
+
+            await _hubContext.Clients
+                .Group(file.Value.FolderId.ToString())
+                .SendAsync("FileRenamed", new RenameFileResponse(id, dto.NewName));
+
             return Ok(updated.Value);
         }
 

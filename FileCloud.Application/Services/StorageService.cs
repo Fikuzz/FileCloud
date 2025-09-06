@@ -285,7 +285,7 @@ namespace FileCloud.Application.Services
                 _logger.LogWarning(fileResult.Error);
                 return Result<byte[]>.Fail(fileResult.Error);
             }
-            var filePath = Path.Combine(fileResult.Value.Path, fileResult.Value.Name);
+            var filePath = Path.Combine(_basePath, fileResult.Value.Path, fileResult.Value.Name);
             if (!System.IO.File.Exists(filePath))
             {
                 var error = $"File missing on disk: {filePath}";
