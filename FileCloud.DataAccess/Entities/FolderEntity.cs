@@ -1,17 +1,23 @@
-﻿namespace FileCloud.DataAccess.Entities;
-public class FolderEntity
+﻿namespace FileCloud.DataAccess.Entities
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
+    public class FolderEntity
+    {
+        public Guid Id { get; set; } = Guid.NewGuid();
+        public string Name { get; set; } = string.Empty;
+        public bool IsRoot { get; set; }
 
-    public string Name { get; set; } = string.Empty;
+        // Родительская папка
+        public Guid? ParentId { get; set; }
+        public FolderEntity? Parent { get; set; }
 
-    // Родительская папка
-    public Guid? ParentId { get; set; }
-    public FolderEntity? Parent { get; set; }
+        // Дочерние папки
+        public ICollection<FolderEntity> SubFolders { get; set; } = new List<FolderEntity>();
 
-    // Дочерние папки
-    public ICollection<FolderEntity> SubFolders { get; set; } = new List<FolderEntity>();
+        // Файлы в папке
+        public ICollection<FileEntity> Files { get; set; } = new List<FileEntity>();
 
-    // Файлы в папке
-    public ICollection<FileEntity> Files { get; set; } = new List<FileEntity>();
+        // Владелец папки
+        public Guid? OwnerId { get; set; }
+        public virtual UserEntity? Owner { get; set; }
+    }
 }

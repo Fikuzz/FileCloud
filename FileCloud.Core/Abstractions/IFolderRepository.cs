@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace FileCloud.Core.Abstractions
 {
-    public interface IFolderRepositories
+    public interface IFolderRepository
     {
         Task<Result<Guid>> Create(Folder folder);
         Task<Result<Folder>> Delete(Guid id);

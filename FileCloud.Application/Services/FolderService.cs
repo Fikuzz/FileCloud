@@ -7,9 +7,9 @@ namespace FileCloud.Application.Services
 {
     public class FolderService : IFolderService
     {
-        IFolderRepositories _folderRepository;
+        IFolderRepository _folderRepository;
         ILogger<FolderService> _logger;
-        public FolderService(IFolderRepositories repository, ILogger<FolderService> logger)
+        public FolderService(IFolderRepository repository, ILogger<FolderService> logger)
         {
             this._folderRepository = repository;
             this._logger = logger;
@@ -40,7 +40,7 @@ namespace FileCloud.Application.Services
         }
         public async Task<Result<Guid>> CreateFolder(string name, Guid? parentId)
         {
-            var folderResult = Folder.Create(Guid.NewGuid(), name, parentId, new List<Folder>(), new List<Core.Models.File>());
+            var folderResult = Folder.Create(Guid.NewGuid(), name, parentId);
             if (!folderResult.IsSuccess)
                 return Result<Guid>.Fail(folderResult.Error);
 

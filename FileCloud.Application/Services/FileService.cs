@@ -7,9 +7,9 @@ namespace FileCloud.Application.Services
 {
     public class FileService : IFilesService
     {
-        private readonly IFilesRepositories _filesRepositories;
+        private readonly IFilesRepository _filesRepositories;
         private readonly ILogger<FileService> _logger;
-        public FileService(IFilesRepositories filesRepositories, ILogger<FileService> logger)
+        public FileService(IFilesRepository filesRepositories, ILogger<FileService> logger)
         {
             _filesRepositories = filesRepositories;
             _logger = logger;

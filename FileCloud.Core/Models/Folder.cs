@@ -9,13 +9,11 @@ namespace FileCloud.Core.Models
 {
     public class Folder
     {
-        private Folder(Guid id, string name, Guid? parentId, ICollection<Folder> subFolders, ICollection<File> files)
+        private Folder(Guid id, string name, Guid? parentId)
         {
             Id = id;
             Name = name;
             ParentId = parentId;
-            SubFolders = subFolders;
-            Files = files;
         }
 
         public Guid Id { get; set; } = Guid.NewGuid();
@@ -26,14 +24,15 @@ namespace FileCloud.Core.Models
         public ICollection<Folder> SubFolders { get; set; } = new List<Folder>();
         // Файлы в папке
         public ICollection<File> Files { get; set; } = new List<File>();
-
-        public static Result<Folder> Create(Guid id, string name, Guid? parentId, ICollection<Folder> subFolders, ICollection<File> files)
+        public static Result<Folder> Create(Guid id, string name, Guid? parentId, ICollection<Folder> folders = null, ICollection<File> files = null)
         {
             if(string.IsNullOrEmpty(name))
             {
                 return Result<Folder>.Fail("incorect folder name");
             }
-            var folder = new Folder(id, name, parentId, subFolders, files);
+            var folder = new Folder(id, name, parentId);
+            folder.SubFolders = folders;
+            folder.Files = files;
             return Result<Folder>.Success(folder);
         }
     }

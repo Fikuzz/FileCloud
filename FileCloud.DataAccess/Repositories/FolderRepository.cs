@@ -14,11 +14,11 @@ using FileCloud.Core;
 
 namespace FileCloud.DataAccess.Repositories
 {
-    public class FolderRepositories : IFolderRepositories
+    public class FolderRepository : IFolderRepository
     {
         private readonly FileCloudDbContext _context;
 
-        public FolderRepositories(FileCloudDbContext context)
+        public FolderRepository(FileCloudDbContext context)
         {
             _context = context;
         }
@@ -36,9 +36,6 @@ namespace FileCloud.DataAccess.Repositories
 
         public async Task<Result<Folder>> Delete(Guid id)
         {
-            if (FileCloudDbContext.RootFolderId == id)
-                return Result<Folder>.Fail("Attempt to delete the root folder");
-
             var folder = await _context.Folders
                 .Where(f => f.Id == id)
                 .Select(s => FolderMapper.ToModel(s))

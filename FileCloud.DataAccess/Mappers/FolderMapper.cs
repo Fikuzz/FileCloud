@@ -11,7 +11,7 @@ namespace FileCloud.DataAccess.Mappers
             var subFolders = (entity.SubFolders ?? Enumerable.Empty<FolderEntity>())
                 .Select(folder =>
                 {
-                    var result = Folder.Create(folder.Id, folder.Name, folder.ParentId, null, null);
+                    var result = Folder.Create(folder.Id, folder.Name, folder.ParentId);
                     return result.IsSuccess ? result.Value : null;
                 })
                 .Where(f => f != null)

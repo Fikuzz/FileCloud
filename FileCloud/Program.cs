@@ -8,6 +8,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Web;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -58,13 +60,40 @@ builder.Services.Configure<StorageOptions>(options =>
 builder.Services.AddScoped<IFilesService, FileService>();
 builder.Services.AddScoped<IFolderService, FolderService>();
 builder.Services.AddScoped<IStorageService,  StorageService>();
-builder.Services.AddScoped<IFilesRepositories, FileRepositories>();
-builder.Services.AddScoped<IFolderRepositories, FolderRepositories>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+
+builder.Services.AddScoped<IFilesRepository, FileRepository>();
+builder.Services.AddScoped<IFolderRepository, FolderRepository>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+
 builder.Services.AddScoped<PreviewService>();
+builder.Services.AddScoped<IJwtService, JwtService>();
+
 builder.Services.AddScoped<ILogger<FileService>, Logger<FileService>>();
 builder.Services.AddScoped<ILogger<FolderService>, Logger<FolderService>>();
 builder.Services.AddScoped<ILogger<StorageService>, Logger<StorageService>>();
 
+// 1. Добавляем сервисы Аутентификации и Настраиваем JWT Bearer
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme) // Указываем, что используем схему Bearer (JWT)
+    .AddJwtBearer(options => // Конфигурируем параметры проверки JWT
+    {
+        // Эти параметры должны совпадать с теми, что используются в JwtService для генерации!
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true, // Проверять издателя?
+            ValidIssuer = builder.Configuration["Jwt:Issuer"], // Кто является валидным издателем
+            ValidateAudience = true, // Проверять аудиторию?
+            ValidAudience = builder.Configuration["Jwt:Audience"], // Для кого предназначен токен
+            ValidateLifetime = true, // Проверять срок действия?
+            ValidateIssuerSigningKey = true, // Проверять ключ подписи?
+            IssuerSigningKey = new SymmetricSecurityKey( // Тот же самый ключ, что и для подписи
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Secret"]!)
+            )
+        };
+    });
+
+// 2. Добавляем сервисы Авторизации
+builder.Services.AddAuthorization(); // Разрешает использовать атрибуты вроде [Authorize]
 
 var app = builder.Build();
 
@@ -80,8 +109,17 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// --- MIDDLEWARE ---
+// 1. CORS
 app.UseCors("AllowAll");
+
+// 2. Аутентификация (сначала узнаем, кто пользователь)
+app.UseAuthentication();
+
+// 3. Авторизация (затем проверяем, что ему можно делать)
 app.UseAuthorization();
+// -----------------------------------------------
 
 // Map endpoints
 app.MapControllers();

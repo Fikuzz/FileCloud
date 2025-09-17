@@ -9,11 +9,11 @@ using Model = FileCloud.Core.Models;
 
 namespace FileCloud.DataAccess.Repositories
 {
-    public class FileRepositories : IFilesRepositories
+    public class FileRepository : IFilesRepository
     {
         private readonly FileCloudDbContext _context;
 
-        public FileRepositories(FileCloudDbContext context)
+        public FileRepository(FileCloudDbContext context)
         {
             _context = context;
         }

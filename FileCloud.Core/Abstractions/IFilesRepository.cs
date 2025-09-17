@@ -2,7 +2,7 @@
 
 namespace FileCloud.Core.Abstractions
 {
-    public interface IFilesRepositories
+    public interface IFilesRepository
     {
         Task<Guid> Create(Core.Models.File file);
         Task<Guid> Delete(Guid id);
