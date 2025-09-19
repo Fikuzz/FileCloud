@@ -26,8 +26,7 @@ namespace FileCloud.Application.Services
                 return Result<AuthResponse>.Fail(userResult.Error);
             }
             var user = userResult.Value;
-            // 3. TODO: ВРЕМЕННО - простая проверка пароля
-            // ЗДЕСЬ НУЖНО БУДЕТ ДОБАВИТЬ ПРОВЕРКУ ХЕША ПАРОЛЯ!
+            // Проверка Хеша Пароля!
             if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             {
                 return Result<AuthResponse>.Fail("Неверный логин или пароль");
