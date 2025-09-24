@@ -27,7 +27,7 @@ namespace FileCloud.Core.Models
         // Только корневая папка
         public ICollection<Guid> RootFoldersId { get; set; }
 
-        public static Result<User> Create(Guid id, string login, string passwordHash, string email, DateTime createdAt)
+        public static Result<User> Create(Guid? id, string login, string passwordHash, string email, DateTime createdAt)
         {
             if (string.IsNullOrWhiteSpace(login))
                 return Result<User>.Fail("Логин не может быть пустым");
@@ -51,7 +51,7 @@ namespace FileCloud.Core.Models
 
 
             var user = new User(
-                id: Guid.NewGuid(),
+                id: id.HasValue ? id.Value : Guid.NewGuid(),
                 login: login.Trim(),
                 passwordHash: passwordHash,
                 email: email.Trim().ToLower(),

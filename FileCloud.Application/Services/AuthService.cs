@@ -6,15 +6,22 @@ namespace FileCloud.Application.Services
 {
     public class AuthService : IAuthService
     {
+        private readonly IUserContext _userContext;
         private readonly IUserRepository _userRepository;
+        private readonly IFolderService _folderService;
         private readonly IJwtService _jwtService;
 
-        public AuthService(IUserRepository userRepository, IJwtService jwtService)
+        public AuthService(IUserRepository userRepository,  IJwtService jwtService, IFolderService folderService, IUserContext userContext)
         {
             _userRepository = userRepository;
             _jwtService = jwtService;
+            _folderService = folderService;
+            _userContext = userContext;
         }
-
+        public async Task<Result<List<User>>> GetUsers()
+        {
+            return await _userRepository.GetUsers();
+        }
         public async Task<Result<AuthResponse>> LoginAsync(LoginRequest request)
         {
             // 1. Находим пользователя по логину
@@ -55,7 +62,7 @@ namespace FileCloud.Application.Services
             (
                 Guid.NewGuid(),
                 request.Login,
-                passwordHash, // Сохраняем ХЕШ, а не plain password
+                passwordHash,
                 request.Email,
                 DateTime.UtcNow
             );
@@ -68,9 +75,30 @@ namespace FileCloud.Application.Services
             // 4. Сохраняем в базу
             await _userRepository.CreateAsync(user);
 
-            // 5. Генерируем токен и возвращаем ответ
+            // 5. Создаем корневую папку для пользователя
+            var folderResult = await _folderService.CreateRootFolder(user.Login, user.Id);
+
+            // 6. Генерируем токен и возвращаем ответ
             var token = _jwtService.GenerateToken(user.Id, user.Login, user.Email);
             return Result<AuthResponse>.Success(new AuthResponse(user.Id, user.Login, user.Email, token));
+        }
+        public async Task<Result> DeleteAsync()
+        {
+            if (!_userContext.IsAuthenticated || _userContext.UserId == null)
+            {
+                throw new UnauthorizedAccessException("User not authenticated");
+            }
+
+            return await _userRepository.DeleteAsync(_userContext.UserId.Value);
+        }
+        public async Task<Result> EndSession()
+        {
+            if (!_userContext.IsAuthenticated || _userContext.UserId == null)
+            {
+                throw new UnauthorizedAccessException("User not authenticated");
+            }
+
+            return await _userRepository.EndSession(_userContext.UserId.Value);
         }
     }
 }

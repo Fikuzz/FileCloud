@@ -6,6 +6,7 @@ using FileCloud.Contracts.Responses.Folder;
 using FileCloud.Core.Abstractions;
 using FileCloud.Core.Models;
 using FileCloud.Hubs;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -14,6 +15,7 @@ using Microsoft.AspNetCore.SignalR;
 namespace FileCloud.Controllers
 {
     [ApiController]
+    [Authorize]
     [Route("api/folder")]
     public class FolderController : Controller
     {

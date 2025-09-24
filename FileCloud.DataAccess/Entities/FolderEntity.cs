@@ -17,7 +17,7 @@
         public ICollection<FileEntity> Files { get; set; } = new List<FileEntity>();
 
         // Владелец папки
-        public Guid? OwnerId { get; set; }
+        public Guid OwnerId { get; set; }
         public virtual UserEntity? Owner { get; set; }
     }
 }

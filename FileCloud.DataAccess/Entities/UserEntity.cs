@@ -17,5 +17,7 @@ namespace FileCloud.DataAccess.Entities
 
         // Папки пользователя
         public virtual ICollection<FolderEntity> Folders { get; set; }
+
+        public DateTime? TokensValidAfter { get; set; }
     }
 }

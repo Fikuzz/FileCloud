@@ -19,6 +19,24 @@ namespace FileCloud.DataAccess.Repositories
             _context = context;
         }
 
+        public async Task<Result<List<User>>> GetUsers()
+        {
+            try
+            {
+                var users = await _context.Users
+                    .AsNoTracking()
+                    .ToListAsync();
+
+                var models = users.Select(u => UserMapper.ToModel(u).Value).ToList();
+
+                return Result<List<User>>.Success(models);
+            }
+            catch (Exception ex)
+            {
+                return Result<List<User>>.Fail($"Error retrieving users: {ex.Message}");
+            }
+        }
+
         public async Task<Result> CreateAsync(User user)
         {
             var userEntity = UserMapper.ToEntity(user);
@@ -50,6 +68,51 @@ namespace FileCloud.DataAccess.Repositories
                 return Result.Success();
             else
                 return Result.Fail("Пользователя с таким логином не существует");
+        }
+
+        public async Task<Result> DeleteAsync(Guid id)
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+
+            try
+            {
+                // Удаляем связанные данные
+                await _context.Files
+                    .Where(f => f.Folder.OwnerId == id)
+                    .ExecuteDeleteAsync();
+
+                await _context.Folders
+                    .Where(f => f.OwnerId == id)
+                    .ExecuteDeleteAsync();
+
+                // Удаляем пользователя
+                var rowsAffected = await _context.Users
+                    .Where(u => u.Id == id)
+                    .ExecuteDeleteAsync();
+
+                await transaction.CommitAsync();
+
+                return rowsAffected > 0
+                    ? Result.Success()
+                    : Result.Fail("User not found");
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return Result.Fail($"Delete failed: {ex.Message}");
+            }
+        }
+
+        public async Task<Result> EndSession(Guid userId)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+                return Result.Fail("User not Exist");
+
+            user.TokensValidAfter = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            return Result.Success();
         }
     }
 }

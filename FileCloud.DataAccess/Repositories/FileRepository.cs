@@ -18,9 +18,10 @@ namespace FileCloud.DataAccess.Repositories
             _context = context;
         }
 
-        public async Task<List<Result<Model.File>>> GetAll()
+        public async Task<List<Result<Model.File>>> GetAll(Guid userId)
         {
             var fileEntities = await _context.Files
+                .Where(f => f.Folder.OwnerId == userId)
                 .AsNoTracking()
                 .ToListAsync();
 
@@ -31,10 +32,10 @@ namespace FileCloud.DataAccess.Repositories
             return result;
         }
 
-        public async Task<Result<Model.File>> Get(Guid id)
+        public async Task<Result<Model.File>> Get(Guid id, Guid userId)
         {
             var fileEntity = await _context.Files
-                .Where(f => f.Id == id)
+                .Where(f => f.Id == id && f.Folder.OwnerId == userId)
                 .FirstAsync();
 
             var result = FileMapper.ToModel(fileEntity);

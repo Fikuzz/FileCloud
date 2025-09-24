@@ -3,6 +3,7 @@ using System;
 using FileCloud.DataAccess;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FileCloud.DataAccess.Migrations
 {
     [DbContext(typeof(FileCloudDbContext))]
-    partial class FileCloudDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250924163534_OwnerIsRequired")]
+    partial class OwnerIsRequired
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -102,9 +105,6 @@ namespace FileCloud.DataAccess.Migrations
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<DateTime?>("TokensValidAfter")
-                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 

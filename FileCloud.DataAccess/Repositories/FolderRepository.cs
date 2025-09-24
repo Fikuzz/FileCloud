@@ -27,7 +27,9 @@ namespace FileCloud.DataAccess.Repositories
             var folderEntity = new FolderEntity()
             {
                 Name = folder.Name,
-                ParentId = folder.ParentId
+                IsRoot = folder.IsRoot,
+                ParentId = folder.ParentId,
+                OwnerId = folder.OwnerId
             };
             await _context.Folders.AddAsync(folderEntity);
             await _context.SaveChangesAsync();
@@ -51,11 +53,12 @@ namespace FileCloud.DataAccess.Repositories
             return Result<Folder>.Success(folder.Value);
         }
 
-        public async Task<Result<Folder>> Get(Guid id)
+        public async Task<Result<Folder>> Get(Guid id, Guid userId)
         {
             try
             {
                 var folderEntity = await _context.Folders
+                    .Where(f => f.OwnerId == userId && f.OwnerId == userId)
                     .Include(f => f.Files)       // Подгружаем файлы
                     .Include(f => f.SubFolders)  // Подгружаем подпапки
                     .FirstOrDefaultAsync(f => f.Id == id);
@@ -71,9 +74,10 @@ namespace FileCloud.DataAccess.Repositories
             }
         }
 
-        public async Task<List<Result<Folder>>> GetAll()
+        public async Task<List<Result<Folder>>> GetAll(Guid userId)
         {
             var folderEntities = await _context.Folders
+                .Where(f => f.OwnerId == userId)
                 .AsNoTracking()
                 .ToListAsync();
 
@@ -114,6 +118,15 @@ namespace FileCloud.DataAccess.Repositories
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(f => f.Name, _ => name));
             return Result<Guid>.Success(id);
+        }
+
+        public async Task<bool> IsOwnerAsync(Guid folderId, Guid userId)
+        {
+            var folder = await _context.Folders
+                .AsNoTracking()
+                .FirstOrDefaultAsync(f => f.Id == folderId);
+
+            return folder?.OwnerId == userId;
         }
     }
 }
