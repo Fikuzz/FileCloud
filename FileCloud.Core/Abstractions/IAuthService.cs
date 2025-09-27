@@ -1,4 +1,6 @@
-﻿using FileCloud.Core.Models;
+﻿using FileCloud.Core.Contracts.Requests;
+using FileCloud.Core.Contracts.Responses;
+using FileCloud.Core.Models;
 
 namespace FileCloud.Core.Abstractions
 {

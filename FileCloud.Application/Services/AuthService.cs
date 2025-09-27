@@ -1,5 +1,8 @@
-﻿using FileCloud.Core;
+﻿using FileCloud.Contracts.Responses.Folder;
+using FileCloud.Core;
 using FileCloud.Core.Abstractions;
+using FileCloud.Core.Contracts.Requests;
+using FileCloud.Core.Contracts.Responses;
 using FileCloud.Core.Models;
 
 namespace FileCloud.Application.Services
@@ -43,7 +46,11 @@ namespace FileCloud.Application.Services
             var token = _jwtService.GenerateToken(user.Id, user.Login, user.Email);
 
             // 5. Возвращаем ответ с токеном
-            return Result<AuthResponse>.Success(new AuthResponse(user.Id, user.Login, user.Email, token));
+            return Result<AuthResponse>.Success(new AuthResponse(user.Id, user.Login, user.Email, token,
+                new FolderResponse(
+                    user.RootFolder.Id,
+                    user.RootFolder.Name,
+                    null)));
         }
         public async Task<Result<AuthResponse>> RegisterAsync(RegisterRequest request)
         {
@@ -77,10 +84,18 @@ namespace FileCloud.Application.Services
 
             // 5. Создаем корневую папку для пользователя
             var folderResult = await _folderService.CreateRootFolder(user.Login, user.Id);
+            if(!folderResult.IsSuccess)
+                return Result<AuthResponse>.Fail(folderResult.Error);
+
+            user.RootFolder = folderResult.Value;
 
             // 6. Генерируем токен и возвращаем ответ
             var token = _jwtService.GenerateToken(user.Id, user.Login, user.Email);
-            return Result<AuthResponse>.Success(new AuthResponse(user.Id, user.Login, user.Email, token));
+            return Result<AuthResponse>.Success(new AuthResponse(user.Id, user.Login, user.Email, token,
+                new FolderResponse(
+                    user.RootFolder.Id,
+                    user.RootFolder.Name,
+                    null)));
         }
         public async Task<Result> DeleteAsync()
         {

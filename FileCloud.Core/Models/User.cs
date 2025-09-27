@@ -25,7 +25,7 @@ namespace FileCloud.Core.Models
         public DateTime CreatedAt { get; set; }
 
         // Только корневая папка
-        public ICollection<Guid> RootFoldersId { get; set; }
+        public Folder RootFolder { get; set; }
 
         public static Result<User> Create(Guid? id, string login, string passwordHash, string email, DateTime createdAt)
         {

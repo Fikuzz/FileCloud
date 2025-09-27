@@ -9,7 +9,7 @@ namespace FileCloud.Core.Abstractions
 {
     public interface IFolderRepository
     {
-        Task<Result<Guid>> Create(Folder folder);
+        Task<Result<Folder>> Create(Folder folder);
         Task<Result<Folder>> Delete(Guid id);
         Task<List<Result<Folder>>> GetAll(Guid userId);
         Task<List<Result<Folder>>> GetChild(Guid id);

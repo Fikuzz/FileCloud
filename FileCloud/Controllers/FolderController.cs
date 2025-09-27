@@ -97,7 +97,7 @@ namespace FileCloud.Controllers
 
             await _hubContext.Clients
                 .Group(request.parentId.ToString())
-                .SendAsync("FolderCreated", result.Value);
+                .SendAsync("FolderCreated", result.Value.Id);
             return Ok(result.Value);
         }
 

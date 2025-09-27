@@ -1,5 +1,6 @@
 ﻿using FileCloud.Contracts.Responses;
 using FileCloud.Core.Abstractions;
+using FileCloud.Core.Contracts.Requests;
 using FileCloud.Core.Models;
 using FileCloud.DataAccess;
 using Microsoft.AspNetCore.Authorization;
@@ -51,7 +52,7 @@ namespace FileCloud.Controllers
                 return Unauthorized(result.Error);
             }
 
-            return Ok(result);
+            return Ok(result.Value);
         }
 
         [HttpPost("register")]
@@ -64,7 +65,7 @@ namespace FileCloud.Controllers
                 return Conflict(result.Error);
             }
 
-            return Ok(result);
+            return Ok(result.Value);
         }
 
         [HttpPost("EndSession")]

@@ -48,14 +48,26 @@ namespace FileCloud.DataAccess.Repositories
 
         public async Task<Result<User>> GetByLoginAsync(string login)
         {
-            // Ищем пользователя по логину (регистронезависимо)
             var user = await _context.Users
+                .Include(u => u.Folders.Where(f => f.ParentId == null))
                 .FirstOrDefaultAsync(u => u.Login.ToLower() == login.ToLower());
 
             if (user == null)
                 return Result<User>.Fail("Пользователя с таким логином не существует");
 
-            return UserMapper.ToModel(user);
+            var userModel = UserMapper.ToModel(user);
+            if (!userModel.IsSuccess)
+                return Result<User>.Fail(userModel.Error);
+
+            var rootFolder = user.Folders.FirstOrDefault();
+            if (rootFolder != null)
+            {
+                var rootFolderModel = FolderMapper.ToModel(rootFolder);
+                if (rootFolderModel.IsSuccess)
+                    userModel.Value.RootFolder = rootFolderModel.Value;
+            }
+
+            return userModel;
         }
 
         public async Task<Result> UserExistAsync(string login)

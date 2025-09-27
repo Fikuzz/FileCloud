@@ -1,4 +1,4 @@
-﻿namespace FileCloud.Core.Models
+﻿namespace FileCloud.Core.Contracts.Requests
 {
     public record LoginRequest(
         string Login,

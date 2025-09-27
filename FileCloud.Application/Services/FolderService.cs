@@ -61,7 +61,7 @@ namespace FileCloud.Application.Services
 
             return await _folderRepository.Get(id, _userContext.UserId.Value);
         }
-        public async Task<Result<Guid>> CreateFolder(string name, Guid parentId)
+        public async Task<Result<Folder>> CreateFolder(string name, Guid parentId)
         {
             if (!_userContext.IsAuthenticated || _userContext.UserId == null)
             {
@@ -70,16 +70,16 @@ namespace FileCloud.Application.Services
 
             var folderResult = Folder.Create(Guid.NewGuid(), name, parentId, _userContext.UserId.Value);
             if (!folderResult.IsSuccess)
-                return Result<Guid>.Fail(folderResult.Error);
+                return Result<Folder>.Fail(folderResult.Error);
 
             var result = await _folderRepository.Create(folderResult.Value);
             return result;
         }
-        public async Task<Result<Guid>> CreateRootFolder(string name, Guid userId)
+        public async Task<Result<Folder>> CreateRootFolder(string name, Guid userId)
         {
             var folderResult = Folder.Create(Guid.NewGuid(), name, null, userId);
             if (!folderResult.IsSuccess)
-                return Result<Guid>.Fail(folderResult.Error);
+                return Result<Folder>.Fail(folderResult.Error);
 
             var folder = folderResult.Value;
             folder.IsRoot = true;

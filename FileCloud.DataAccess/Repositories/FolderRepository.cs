@@ -22,7 +22,7 @@ namespace FileCloud.DataAccess.Repositories
         {
             _context = context;
         }
-        public async Task<Result<Guid>> Create(Folder folder)
+        public async Task<Result<Folder>> Create(Folder folder)
         {
             var folderEntity = new FolderEntity()
             {
@@ -33,7 +33,7 @@ namespace FileCloud.DataAccess.Repositories
             };
             await _context.Folders.AddAsync(folderEntity);
             await _context.SaveChangesAsync();
-            return Result<Guid>.Success(folderEntity.Id);
+            return FolderMapper.ToModel(folderEntity);
         }
 
         public async Task<Result<Folder>> Delete(Guid id)
