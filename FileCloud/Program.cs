@@ -4,10 +4,13 @@ using FileCloud.Core.Options;
 using FileCloud.DataAccess;
 using FileCloud.DataAccess.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Identity.Web;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,7 +18,35 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    // Добавляем описание для JWT в Swagger
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+
+    // Добавляем требование безопасности для всех endpoints
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                },
+                Scheme = "Bearer"
+            },
+            Array.Empty<string>()
+        }
+    });
+});
 
 // DbContext
 builder.Services.AddDbContext<FileCloudDbContext>(options =>
@@ -58,13 +89,74 @@ builder.Services.Configure<StorageOptions>(options =>
 builder.Services.AddScoped<IFilesService, FileService>();
 builder.Services.AddScoped<IFolderService, FolderService>();
 builder.Services.AddScoped<IStorageService,  StorageService>();
-builder.Services.AddScoped<IFilesRepositories, FileRepositories>();
-builder.Services.AddScoped<IFolderRepositories, FolderRepositories>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+
+builder.Services.AddScoped<IFilesRepository, FileRepository>();
+builder.Services.AddScoped<IFolderRepository, FolderRepository>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+
 builder.Services.AddScoped<PreviewService>();
+builder.Services.AddScoped<IJwtService, JwtService>();
+
 builder.Services.AddScoped<ILogger<FileService>, Logger<FileService>>();
 builder.Services.AddScoped<ILogger<FolderService>, Logger<FolderService>>();
 builder.Services.AddScoped<ILogger<StorageService>, Logger<StorageService>>();
 
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IUserContext, UserContext>();
+
+// 1. Добавляем сервисы Аутентификации и Настраиваем JWT Bearer
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme) // Указываем, что используем схему Bearer (JWT)
+    .AddJwtBearer(options => // Конфигурируем параметры проверки JWT
+    {
+        // Эти параметры должны совпадать с теми, что используются в JwtService для генерации!
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true, // Проверять издателя?
+            ValidIssuer = builder.Configuration["Jwt:Issuer"], // Кто является валидным издателем
+            ValidateAudience = true, // Проверять аудиторию?
+            ValidAudience = builder.Configuration["Jwt:Audience"], // Для кого предназначен токен
+            ValidateLifetime = true, // Проверять срок действия?
+            ValidateIssuerSigningKey = true, // Проверять ключ подписи?
+            IssuerSigningKey = new SymmetricSecurityKey( // Тот же самый ключ, что и для подписи
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Secret"]!)
+            )
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                var userIdClaim = context.Principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var iatClaim = context.Principal.FindFirst(JwtRegisteredClaimNames.Iat)?.Value;
+
+                if (string.IsNullOrEmpty(userIdClaim) || string.IsNullOrEmpty(iatClaim))
+                {
+                    context.Fail("Invalid token claims");
+                    return;
+                }
+
+                var userId = Guid.Parse(userIdClaim);
+                var tokenIssuedAt = long.Parse(iatClaim);
+                var tokenIssuedAtDateTime = DateTimeOffset.FromUnixTimeSeconds(tokenIssuedAt).UtcDateTime;
+
+                var dbContext = context.HttpContext.RequestServices.GetRequiredService<FileCloudDbContext>();
+                var user = await dbContext.Users.FindAsync(userId);
+
+                if(user == null)
+                {
+                    context.Fail("User account no longer exists");
+                }
+                // Если установлена дата "валидно после" и токен выпущен ДО этой даты
+                if (user?.TokensValidAfter != null && tokenIssuedAtDateTime < user.TokensValidAfter.Value)
+                {
+                    context.Fail("Token revoked");
+                }
+            }
+        };
+    });
+
+// 2. Добавляем сервисы Авторизации
+builder.Services.AddAuthorization(); // Разрешает использовать атрибуты вроде [Authorize]
 
 var app = builder.Build();
 
@@ -80,8 +172,17 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// --- MIDDLEWARE ---
+// 1. CORS
 app.UseCors("AllowAll");
+
+// 2. Аутентификация (сначала узнаем, кто пользователь)
+app.UseAuthentication();
+
+// 3. Авторизация (затем проверяем, что ему можно делать)
 app.UseAuthorization();
+// -----------------------------------------------
 
 // Map endpoints
 app.MapControllers();

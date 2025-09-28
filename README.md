@@ -1,9 +1,9 @@
 # 📋 Project Roadmap
 
 ## 🔑 Authentication & User Management
-- [ ] User registration and login
-- [ ] JWT or Cookie authentication
-- [ ] User-specific file isolation
+- [X] User registration and login
+- [X] JWT authentication
+- [X] User-specific file isolation
 
 ## 📁 File Operations
 - [x] Uploading files
@@ -16,16 +16,10 @@
 
 ## ⚙️ UI/UX
 - [x] Multi-select with Shift/Ctrl
-- [ ] Drag & drop uploads
+- [X] Drag & drop uploads
 - [ ] Upload progress indicator
 - [x] File sorting and filtering
-
-## 🔐 Security
-- [ ] File size/type validation
-- [ ] Role-based access
-- [ ] Log unauthorized access attempts
 
 ## 💡 Advanced
 - [x] Folder creation and navigation
 - [x] Recycle bin for deleted files
-- [ ] File sharing via links

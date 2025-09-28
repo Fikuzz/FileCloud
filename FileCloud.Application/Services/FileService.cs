@@ -7,24 +7,35 @@ namespace FileCloud.Application.Services
 {
     public class FileService : IFilesService
     {
-        private readonly IFilesRepositories _filesRepositories;
+        private readonly IUserContext _userContext;
+        private readonly IFilesRepository _filesRepositories;
         private readonly ILogger<FileService> _logger;
-        public FileService(IFilesRepositories filesRepositories, ILogger<FileService> logger)
+        public FileService(IFilesRepository filesRepositories, ILogger<FileService> logger, IUserContext userContext)
         {
             _filesRepositories = filesRepositories;
             _logger = logger;
+            _userContext = userContext;
         }
 
         public async Task<List<Result<Model.File>>> GetAllFiles()
         {
-            var resultList = await _filesRepositories.GetAll();
+            if (!_userContext.IsAuthenticated || _userContext.UserId == null)
+            {
+                throw new UnauthorizedAccessException("User not authenticated");
+            }
+
+            var resultList = await _filesRepositories.GetAll(_userContext.UserId.Value);
 
             return resultList;
         }
 
         public async Task<Result<Model.File>> GetFileById(Guid id)
         {
-            return await _filesRepositories.Get(id);
+            if (!_userContext.IsAuthenticated || _userContext.UserId == null)
+            {
+                throw new UnauthorizedAccessException("User not authenticated");
+            }
+            return await _filesRepositories.Get(id, _userContext.UserId.Value);
         }
 
         public async Task<Result<string>> UploadFile(Model.File file)
@@ -54,7 +65,12 @@ namespace FileCloud.Application.Services
 
         public async Task<Result<string>> DeleteFile(Guid id)
         {
-            var uploadedFile = await _filesRepositories.Get(id);
+            if (!_userContext.IsAuthenticated || _userContext.UserId == null)
+            {
+                throw new UnauthorizedAccessException("User not authenticated");
+            }
+
+            var uploadedFile = await _filesRepositories.Get(id, _userContext.UserId.Value);
             if (!uploadedFile.IsSuccess)
                 return Result<string>.Fail(uploadedFile.Error);
             var file = uploadedFile.Value;

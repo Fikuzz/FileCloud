@@ -4,6 +4,7 @@ using FileCloud.Contracts.Requests.Folder;
 using FileCloud.Contracts.Responses.File;
 using FileCloud.Core.Abstractions;
 using FileCloud.Hubs;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using SixLabors.ImageSharp;
@@ -11,6 +12,7 @@ using SixLabors.ImageSharp;
 namespace FileCloud.Controllers
 {
     [ApiController]
+    [Authorize]
     [Route("api/file")]
     public class FileController : ControllerBase
     {

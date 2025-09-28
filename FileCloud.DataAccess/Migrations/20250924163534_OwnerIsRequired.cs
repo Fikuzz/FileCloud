@@ -6,14 +6,14 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace FileCloud.DataAccess.Migrations
 {
     /// <inheritdoc />
-    public partial class Back : Migration
+    public partial class OwnerIsRequired : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AlterColumn<Guid>(
-                name: "FolderId",
-                table: "Files",
+                name: "OwnerId",
+                table: "Folders",
                 type: "uuid",
                 nullable: false,
                 defaultValue: new Guid("00000000-0000-0000-0000-000000000000"),
@@ -26,8 +26,8 @@ namespace FileCloud.DataAccess.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AlterColumn<Guid>(
-                name: "FolderId",
-                table: "Files",
+                name: "OwnerId",
+                table: "Folders",
                 type: "uuid",
                 nullable: true,
                 oldClrType: typeof(Guid),

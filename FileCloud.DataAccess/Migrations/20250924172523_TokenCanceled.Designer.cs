@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FileCloud.DataAccess.Migrations
 {
     [DbContext(typeof(FileCloudDbContext))]
-    [Migration("20250820134547_RootFolder")]
-    partial class RootFolder
+    [Migration("20250924172523_TokenCanceled")]
+    partial class TokenCanceled
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -60,27 +60,58 @@ namespace FileCloud.DataAccess.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("IsRoot")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
+
+                    b.Property<Guid>("OwnerId")
+                        .HasColumnType("uuid");
 
                     b.Property<Guid?>("ParentId")
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("OwnerId");
+
                     b.HasIndex("ParentId", "Name")
                         .IsUnique();
 
                     b.ToTable("Folders");
+                });
 
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("11111111-1111-1111-1111-111111111111"),
-                            Name = "Root"
-                        });
+            modelBuilder.Entity("FileCloud.DataAccess.Entities.UserEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Login")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("TokensValidAfter")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Users");
                 });
 
             modelBuilder.Entity("FileCloud.DataAccess.Entities.FileEntity", b =>
@@ -96,10 +127,18 @@ namespace FileCloud.DataAccess.Migrations
 
             modelBuilder.Entity("FileCloud.DataAccess.Entities.FolderEntity", b =>
                 {
+                    b.HasOne("FileCloud.DataAccess.Entities.UserEntity", "Owner")
+                        .WithMany("Folders")
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("FileCloud.DataAccess.Entities.FolderEntity", "Parent")
                         .WithMany("SubFolders")
                         .HasForeignKey("ParentId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Owner");
 
                     b.Navigation("Parent");
                 });
@@ -109,6 +148,11 @@ namespace FileCloud.DataAccess.Migrations
                     b.Navigation("Files");
 
                     b.Navigation("SubFolders");
+                });
+
+            modelBuilder.Entity("FileCloud.DataAccess.Entities.UserEntity", b =>
+                {
+                    b.Navigation("Folders");
                 });
 #pragma warning restore 612, 618
         }
