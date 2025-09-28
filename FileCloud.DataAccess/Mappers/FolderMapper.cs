@@ -11,7 +11,7 @@ namespace FileCloud.DataAccess.Mappers
             var subFolders = (entity.SubFolders ?? Enumerable.Empty<FolderEntity>())
                 .Select(folder =>
                 {
-                    var result = Folder.Create(folder.Id, folder.Name, folder.ParentId, null, null);
+                    var result = Folder.Create(folder.Id, folder.Name, folder.ParentId, folder.OwnerId);
                     return result.IsSuccess ? result.Value : null;
                 })
                 .Where(f => f != null)
@@ -26,7 +26,7 @@ namespace FileCloud.DataAccess.Mappers
                 .Where(f => f != null)
                 .ToList();
 
-            return Folder.Create(entity.Id, entity.Name, entity.ParentId, subFolders, files);
+            return Folder.Create(entity.Id, entity.Name, entity.ParentId, entity.OwnerId, subFolders, files);
         }
     }
 }
