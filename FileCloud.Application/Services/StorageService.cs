@@ -75,7 +75,6 @@ namespace FileCloud.Application.Services
             Directory.CreateDirectory(fullPath);
             return Result<string>.Success(fullPath);
         }
-    
         public async Task<Result<Folder>> DeleteFolderCascadeAsync(Guid folderId)
         {
             var folderResult = await _folderService.GetFolder(folderId);
@@ -138,9 +137,10 @@ namespace FileCloud.Application.Services
             if (System.IO.File.Exists(fullpath))
                 System.IO.File.Delete(fullpath);
 
+            _previewService.DeletePreview(fileId);
+
             return Result<Core.Models.File>.Success(file.Value);
         }
-
         public async Task<Result<string>> MoveFolder(Guid folderId, Guid? newParentId)
         {
             var folderResult = await _folderService.GetFolder(folderId);
@@ -200,7 +200,6 @@ namespace FileCloud.Application.Services
             }
             return Result<string>.Success(newPath.Value);
         }
-
         public async Task<Result<string>> RenameFolder(Guid folderId, string newName)
         {
             var oldPathResult = await BuildFullPathForFolderAsync(folderId);
@@ -258,7 +257,6 @@ namespace FileCloud.Application.Services
 
             return Result<string>.Success(newPath);
         }
-
         public async Task<Result<byte[]>> GetPreview(Guid id)
         {
             var previewPath = _previewService.GetPreviewPath(id);
@@ -298,7 +296,6 @@ namespace FileCloud.Application.Services
             var bytes = await System.IO.File.ReadAllBytesAsync(filePath);
             return Result<byte[]>.Success(bytes);
         }
-
         public async Task<Result<string>> BuildFullPathForFileAsync(Guid fileId)
         {
             var fileResult = await _filesService.GetFileById(fileId);
@@ -309,7 +306,6 @@ namespace FileCloud.Application.Services
         }
         public Task<Result<string>> BuildFullPathForFolderAsync(Guid? folderId) =>
             BuildFullPathAsync(folderId);
-
         public async Task<Result<string>> BuildFullPathAsync(Guid? folderId, string? fileName = null)
         {
             if (folderId == null)
